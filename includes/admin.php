@@ -684,15 +684,17 @@ function lp_admin_ledenbeheer_pagina() {
                         <th><?php esc_html_e( 'Naam', 'mijn-ledenportaal' ); ?></th>
                         <th><?php esc_html_e( 'E-mail', 'mijn-ledenportaal' ); ?></th>
                         <th><?php esc_html_e( 'Geregistreerd', 'mijn-ledenportaal' ); ?></th>
+                        <th><?php esc_html_e( 'Laatst gewijzigd', 'mijn-ledenportaal' ); ?></th>
                         <th><?php esc_html_e( 'Status', 'mijn-ledenportaal' ); ?></th>
                         <th><?php esc_html_e( 'Acties', 'mijn-ledenportaal' ); ?></th>
                     </tr>
                 </thead>
                 <tbody>
                     <?php foreach ( $gebruikers as $gebruiker ) :
-                        $status = get_user_meta( $gebruiker->ID, 'lp_account_status', true );
-                        $kleur  = $status_kleuren[ $status ] ?? '#999';
-                        $label  = $status_labels[ $status ] ?? esc_html( $status );
+                        $status          = get_user_meta( $gebruiker->ID, 'lp_account_status', true );
+                        $kleur           = $status_kleuren[ $status ] ?? '#999';
+                        $label           = $status_labels[ $status ] ?? esc_html( $status );
+                        $gewijzigd_datum = get_user_meta( $gebruiker->ID, 'lp_account_gewijzigd', true );
                     ?>
                         <tr>
                             <td>
@@ -704,6 +706,7 @@ function lp_admin_ledenbeheer_pagina() {
                             </td>
                             <td><?php echo esc_html( $gebruiker->user_email ); ?></td>
                             <td><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $gebruiker->user_registered ) ) ); ?></td>
+                            <td><?php echo $gewijzigd_datum ? esc_html( date_i18n( 'd-m-Y H:i', strtotime( $gewijzigd_datum ) ) ) : '—'; ?></td>
                             <td>
                                 <span style="background: <?php echo esc_attr( $kleur ); ?>; color: white; padding: 3px 8px; border-radius: 3px; font-size: 12px;">
                                     <?php echo esc_html( $label ); ?>

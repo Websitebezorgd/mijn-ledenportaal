@@ -2,6 +2,25 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
+ * IBAN validatie (mod-97 checksum)
+ */
+function lp_valideer_iban( $iban ) {
+    $iban = strtoupper( preg_replace( '/\s+/', '', $iban ) );
+    if ( ! preg_match( '/^[A-Z]{2}[0-9]{2}[A-Z0-9]{1,30}$/', $iban ) ) return false;
+    $rearranged = substr( $iban, 4 ) . substr( $iban, 0, 4 );
+    $numeric = '';
+    for ( $i = 0; $i < strlen( $rearranged ); $i++ ) {
+        $c = $rearranged[ $i ];
+        $numeric .= ctype_alpha( $c ) ? (string) ( ord( $c ) - 55 ) : $c;
+    }
+    $remainder = 0;
+    for ( $i = 0; $i < strlen( $numeric ); $i++ ) {
+        $remainder = ( $remainder * 10 + (int) $numeric[ $i ] ) % 97;
+    }
+    return $remainder === 1;
+}
+
+/**
  * Dropdown opties — gedeeld met andere includes
  */
 function lp_geslacht_opties() {
@@ -111,6 +130,10 @@ function lp_verwerk_registratie() {
         'afdeling'              => sanitize_key( $_POST['afdeling'] ?? '' ),
         'soort_pensioen'        => sanitize_key( $_POST['soort_pensioen'] ?? '' ),
         'verenigingsfunctie'    => array_map( 'sanitize_key', (array) ( $_POST['verenigingsfunctie'] ?? [] ) ),
+        'iban'                  => strtoupper( preg_replace( '/\s+/', '', sanitize_text_field( $_POST['iban'] ?? '' ) ) ),
+        'iban2'                 => strtoupper( preg_replace( '/\s+/', '', sanitize_text_field( $_POST['iban2'] ?? '' ) ) ),
+        'iban_ten_name_van'     => sanitize_text_field( $_POST['iban_ten_name_van'] ?? '' ),
+        'incasso_toestemming'   => ! empty( $_POST['incasso_toestemming'] ) ? '1' : '',
     ];
 
     // Validatie
@@ -122,6 +145,13 @@ function lp_verwerk_registratie() {
     if ( empty( $data['wachtwoord'] ) )             $fouten[] = __( 'Wachtwoord is verplicht.', 'mijn-ledenportaal' );
     if ( strlen( $data['wachtwoord'] ) < 8 )        $fouten[] = __( 'Wachtwoord moet minimaal 8 tekens bevatten.', 'mijn-ledenportaal' );
     if ( $data['wachtwoord'] !== $data['wachtwoord2'] ) $fouten[] = __( 'Wachtwoorden komen niet overeen.', 'mijn-ledenportaal' );
+
+    if ( ! empty( $data['iban'] ) ) {
+        if ( ! lp_valideer_iban( $data['iban'] ) )       $fouten[] = __( 'Voer een geldig IBAN-nummer in.', 'mijn-ledenportaal' );
+        if ( $data['iban'] !== $data['iban2'] )           $fouten[] = __( 'IBAN-nummers komen niet overeen.', 'mijn-ledenportaal' );
+        if ( empty( $data['iban_ten_name_van'] ) )        $fouten[] = __( 'Naam rekeninghouder is verplicht bij opgave van een IBAN.', 'mijn-ledenportaal' );
+        if ( empty( $data['incasso_toestemming'] ) )      $fouten[] = __( 'Je moet toestemming geven voor automatisch incasso.', 'mijn-ledenportaal' );
+    }
 
     // Saniteer optiekeuzevelden
     if ( ! in_array( $data['geslacht'], array_keys( lp_geslacht_opties() ), true ) )       $data['geslacht'] = '';
@@ -167,6 +197,13 @@ function lp_verwerk_registratie() {
     update_user_meta( $user_id, 'lp_land',                  $data['land'] );
     update_user_meta( $user_id, 'lp_afdeling',              $data['afdeling'] );
     update_user_meta( $user_id, 'lp_soort_pensioen',        $data['soort_pensioen'] );
+    update_user_meta( $user_id, 'lp_iban',                  $data['iban'] );
+    update_user_meta( $user_id, 'lp_iban_ten_name_van',     $data['iban_ten_name_van'] );
+    update_user_meta( $user_id, 'lp_incasso_toestemming',   $data['incasso_toestemming'] );
+    if ( $data['incasso_toestemming'] === '1' ) {
+        update_user_meta( $user_id, 'lp_incasso_toestemming_datum', current_time( 'Y-m-d H:i:s' ) );
+    }
+
     $flow = get_option( 'lp_goedkeuring_flow', 'manual' );
     $status = ( $flow === 'automatic' ) ? 'approved' : 'pending';
     update_user_meta( $user_id, 'lp_account_status', $status );

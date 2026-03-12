@@ -35,6 +35,10 @@ function lp_verwerk_account() {
     $soort_pensioen         = sanitize_key( $_POST['soort_pensioen'] ?? '' );
     $nieuw_wachtwoord       = $_POST['nieuw_wachtwoord'] ?? '';
     $nieuw_wachtwoord2      = $_POST['nieuw_wachtwoord2'] ?? '';
+    $iban                   = strtoupper( preg_replace( '/\s+/', '', sanitize_text_field( $_POST['iban'] ?? '' ) ) );
+    $iban2                  = strtoupper( preg_replace( '/\s+/', '', sanitize_text_field( $_POST['iban2'] ?? '' ) ) );
+    $iban_ten_name_van      = sanitize_text_field( $_POST['iban_ten_name_van'] ?? '' );
+    $incasso_toestemming    = ! empty( $_POST['incasso_toestemming'] ) ? '1' : '';
 
     $fouten = [];
     if ( empty( $voornaam ) )   $fouten[] = __( 'Voornaam is verplicht.', 'mijn-ledenportaal' );
@@ -51,6 +55,13 @@ function lp_verwerk_account() {
         if ( $nieuw_wachtwoord !== $nieuw_wachtwoord2 ) $fouten[] = __( 'Nieuwe wachtwoorden komen niet overeen.', 'mijn-ledenportaal' );
     }
 
+    if ( ! empty( $iban ) ) {
+        if ( ! lp_valideer_iban( $iban ) )          $fouten[] = __( 'Voer een geldig IBAN-nummer in.', 'mijn-ledenportaal' );
+        if ( $iban !== $iban2 )                     $fouten[] = __( 'IBAN-nummers komen niet overeen.', 'mijn-ledenportaal' );
+        if ( empty( $iban_ten_name_van ) )           $fouten[] = __( 'Naam rekeninghouder is verplicht bij opgave van een IBAN.', 'mijn-ledenportaal' );
+        if ( empty( $incasso_toestemming ) )         $fouten[] = __( 'Je moet toestemming geven voor automatisch incasso.', 'mijn-ledenportaal' );
+    }
+
     if ( ! in_array( $geslacht, array_keys( lp_geslacht_opties() ), true ) )       $geslacht = '';
     if ( ! in_array( $afdeling, array_keys( lp_afdeling_opties() ), true ) )       $afdeling = '';
     if ( ! in_array( $soort_pensioen, array_keys( lp_pensioen_opties() ), true ) ) $soort_pensioen = '';
@@ -61,6 +72,11 @@ function lp_verwerk_account() {
         wp_safe_redirect( add_query_arg( 'lp_fout_account', $token, lp_huidige_url() ) );
         exit;
     }
+
+    // Onderdruk WordPress-eigen notificatiemails (email-wijziging / wachtwoord-wijziging)
+    // om trage synchrone mailblokkade bij het opslaan te voorkomen.
+    add_filter( 'send_email_change_email',    '__return_false' );
+    add_filter( 'send_password_change_email', '__return_false' );
 
     $user_data = [
         'ID'           => $user_id,
@@ -73,6 +89,9 @@ function lp_verwerk_account() {
         $user_data['user_pass'] = $nieuw_wachtwoord;
     }
     wp_update_user( $user_data );
+
+    remove_filter( 'send_email_change_email',    '__return_false' );
+    remove_filter( 'send_password_change_email', '__return_false' );
 
     update_user_meta( $user_id, 'lp_geslacht',              $geslacht );
     update_user_meta( $user_id, 'lp_geboortedatum',         $geboortedatum );
@@ -96,7 +115,25 @@ function lp_verwerk_account() {
         }
     }
 
-    do_action( 'lp_account_bijgewerkt', $user_id );
+    $huidig_iban = get_user_meta( $user_id, 'lp_iban', true );
+    update_user_meta( $user_id, 'lp_iban',              $iban );
+    update_user_meta( $user_id, 'lp_iban_ten_name_van', $iban_ten_name_van );
+    update_user_meta( $user_id, 'lp_incasso_toestemming', $incasso_toestemming );
+    if ( $incasso_toestemming === '1' && $iban !== $huidig_iban ) {
+        update_user_meta( $user_id, 'lp_incasso_toestemming_datum', current_time( 'Y-m-d H:i:s' ) );
+    }
+
+    // Sla "laatst gewijzigd" timestamp op
+    update_user_meta( $user_id, 'lp_account_gewijzigd', current_time( 'Y-m-d H:i:s' ) );
+
+    // Stuur de notificatiemail ná de redirect via shutdown, zodat de browser niet hoeft te wachten.
+    $user_id_snapshot = $user_id;
+    register_shutdown_function( function() use ( $user_id_snapshot ) {
+        if ( function_exists( 'fastcgi_finish_request' ) ) {
+            fastcgi_finish_request();
+        }
+        do_action( 'lp_account_bijgewerkt', $user_id_snapshot );
+    } );
 
     wp_safe_redirect( add_query_arg( 'lp_succes', 'account', lp_huidige_url() ) );
     exit;
@@ -130,8 +167,13 @@ function lp_render_account() {
         'land'                  => get_user_meta( $user_id, 'lp_land', true ) ?: 'NL',
         'afdeling'              => get_user_meta( $user_id, 'lp_afdeling', true ),
         'soort_pensioen'        => get_user_meta( $user_id, 'lp_soort_pensioen', true ),
-        'verenigingsfunctie'    => get_user_meta( $user_id, 'lp_verenigingsfunctie' ),
-        'account_status'        => get_user_meta( $user_id, 'lp_account_status', true ),
+        'verenigingsfunctie'           => get_user_meta( $user_id, 'lp_verenigingsfunctie' ),
+        'account_status'               => get_user_meta( $user_id, 'lp_account_status', true ),
+        'iban'                         => get_user_meta( $user_id, 'lp_iban', true ),
+        'iban_ten_name_van'            => get_user_meta( $user_id, 'lp_iban_ten_name_van', true ),
+        'incasso_toestemming'          => get_user_meta( $user_id, 'lp_incasso_toestemming', true ),
+        'incasso_toestemming_datum'    => get_user_meta( $user_id, 'lp_incasso_toestemming_datum', true ),
+        'account_gewijzigd'            => get_user_meta( $user_id, 'lp_account_gewijzigd', true ),
     ];
 
     ob_start();

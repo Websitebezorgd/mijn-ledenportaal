@@ -32,6 +32,9 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         <button type="button" class="lp-tab" data-tab="lp-tab-extra">
             <?php esc_html_e( 'Extra gegevens', 'mijn-ledenportaal' ); ?>
         </button>
+        <button type="button" class="lp-tab" data-tab="lp-tab-betaal">
+            <?php esc_html_e( 'Betaalgegevens', 'mijn-ledenportaal' ); ?>
+        </button>
         <button type="button" class="lp-tab" data-tab="lp-tab-wachtwoord">
             <?php esc_html_e( 'Wachtwoord', 'mijn-ledenportaal' ); ?>
         </button>
@@ -196,7 +199,58 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             </div>
         </div>
 
-        <!-- Tab 4: Wachtwoord -->
+        <!-- Tab 4: Betaalgegevens -->
+        <div class="lp-tab-inhoud" id="lp-tab-betaal">
+            <h3 class="lp-sectie-titel"><?php esc_html_e( 'Betaalgegevens', 'mijn-ledenportaal' ); ?></h3>
+            <p class="lp-veld-hint"><?php esc_html_e( 'Vul je bankgegevens in om automatisch incasso te machtigen voor de contributie.', 'mijn-ledenportaal' ); ?></p>
+
+            <?php if ( $meta['incasso_toestemming'] === '1' && $meta['incasso_toestemming_datum'] ) : ?>
+                <p class="lp-veld-hint" style="color: #5cb85c;">
+                    <?php printf(
+                        esc_html__( 'Incassomachtiging actief sinds %s.', 'mijn-ledenportaal' ),
+                        esc_html( date_i18n( 'd-m-Y', strtotime( $meta['incasso_toestemming_datum'] ) ) )
+                    ); ?>
+                </p>
+            <?php endif; ?>
+
+            <div class="lp-form-groep">
+                <label class="lp-label" for="lp-iban"><?php esc_html_e( 'IBAN', 'mijn-ledenportaal' ); ?></label>
+                <input class="lp-input" type="text" id="lp-iban" name="iban"
+                    value="<?php echo esc_attr( $meta['iban'] ); ?>"
+                    placeholder="NL00 BANK 0000 0000 00"
+                    autocomplete="off"
+                    style="text-transform: uppercase;">
+            </div>
+
+            <div class="lp-form-groep">
+                <label class="lp-label" for="lp-iban2"><?php esc_html_e( 'IBAN bevestigen', 'mijn-ledenportaal' ); ?></label>
+                <input class="lp-input" type="text" id="lp-iban2" name="iban2"
+                    value=""
+                    placeholder="<?php esc_attr_e( 'Herhaal IBAN om te wijzigen', 'mijn-ledenportaal' ); ?>"
+                    autocomplete="off"
+                    style="text-transform: uppercase;">
+                <p class="lp-iban-match-melding" style="display: none; color: #d9534f;">
+                    <?php esc_html_e( 'IBAN-nummers komen niet overeen.', 'mijn-ledenportaal' ); ?>
+                </p>
+            </div>
+
+            <div class="lp-form-groep">
+                <label class="lp-label" for="lp-iban-ten-name-van"><?php esc_html_e( 'Ten name van', 'mijn-ledenportaal' ); ?></label>
+                <input class="lp-input" type="text" id="lp-iban-ten-name-van" name="iban_ten_name_van"
+                    value="<?php echo esc_attr( $meta['iban_ten_name_van'] ); ?>"
+                    autocomplete="off">
+            </div>
+
+            <div class="lp-form-groep">
+                <label class="lp-checkbox-label">
+                    <input type="checkbox" name="incasso_toestemming" value="1"
+                        <?php checked( $meta['incasso_toestemming'], '1' ); ?>>
+                    <?php esc_html_e( 'Ik geef toestemming voor automatisch incasso van de contributie van bovenstaande rekening.', 'mijn-ledenportaal' ); ?>
+                </label>
+            </div>
+        </div>
+
+        <!-- Tab 5: Wachtwoord -->
         <div class="lp-tab-inhoud" id="lp-tab-wachtwoord">
             <h3 class="lp-sectie-titel"><?php esc_html_e( 'Wachtwoord wijzigen', 'mijn-ledenportaal' ); ?></h3>
             <p class="lp-veld-hint"><?php esc_html_e( 'Laat leeg als je je wachtwoord niet wilt wijzigen.', 'mijn-ledenportaal' ); ?></p>
@@ -229,6 +283,14 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         </div>
 
         <!-- Opslaan knop (altijd zichtbaar) -->
+        <?php if ( ! empty( $meta['account_gewijzigd'] ) ) : ?>
+            <p class="lp-veld-hint" style="color: #999; margin-bottom: 8px;">
+                <?php printf(
+                    esc_html__( 'Laatst gewijzigd: %s', 'mijn-ledenportaal' ),
+                    esc_html( date_i18n( 'd-m-Y H:i', strtotime( $meta['account_gewijzigd'] ) ) )
+                ); ?>
+            </p>
+        <?php endif; ?>
         <div class="lp-form-groep lp-form-groep--acties">
             <button type="submit" name="lp_account_submit" class="lp-knop">
                 <?php esc_html_e( 'Wijzigingen opslaan', 'mijn-ledenportaal' ); ?>
@@ -239,5 +301,18 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         </div>
 
     </form>
+    <script>
+    (function() {
+        var iban1 = document.getElementById('lp-iban');
+        var iban2 = document.getElementById('lp-iban2');
+        var melding = iban2 ? iban2.closest('.lp-form-groep').querySelector('.lp-iban-match-melding') : null;
+        function checkIban() {
+            if (!melding) return;
+            melding.style.display = (iban1.value && iban2.value && iban1.value.replace(/\s/g,'').toUpperCase() !== iban2.value.replace(/\s/g,'').toUpperCase()) ? '' : 'none';
+        }
+        if (iban1) iban1.addEventListener('input', checkIban);
+        if (iban2) iban2.addEventListener('input', checkIban);
+    })();
+    </script>
 
 </div>
