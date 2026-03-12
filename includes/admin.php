@@ -67,6 +67,23 @@ function lp_admin_instellingen_pagina() {
 
         <?php settings_errors( 'lp_instellingen' ); ?>
 
+        <div style="background: #fff; border: 1px solid #c3c4c7; border-radius: 4px; padding: 16px 20px; margin-bottom: 20px; display: flex; gap: 32px; flex-wrap: wrap; align-items: center;">
+            <strong style="color: #1d2327; white-space: nowrap;"><?php esc_html_e( 'Shortcodes:', 'mijn-ledenportaal' ); ?></strong>
+            <?php
+            $shortcodes = [
+                '[ledenportaal_login]',
+                '[ledenportaal_registratie]',
+                '[ledenportaal_account]',
+            ];
+            foreach ( $shortcodes as $sc ) : ?>
+                <code
+                    style="background: #f0f0f1; padding: 6px 12px; border-radius: 3px; font-size: 13px; cursor: pointer; user-select: all; border: 1px solid #c3c4c7;"
+                    title="<?php esc_attr_e( 'Klik om te kopiëren', 'mijn-ledenportaal' ); ?>"
+                    onclick="navigator.clipboard.writeText('<?php echo esc_js( $sc ); ?>').then(function(){ var el = this; el.style.background='#d7f0d1'; setTimeout(function(){ el.style.background='#f0f0f1'; }, 1200); }.bind(this));"
+                ><?php echo esc_html( $sc ); ?></code>
+            <?php endforeach; ?>
+        </div>
+
         <form method="post" action="options.php">
             <?php settings_fields( 'lp_instellingen' ); ?>
 
@@ -89,7 +106,6 @@ function lp_admin_instellingen_pagina() {
                                 <?php esc_html_e( 'Bekijk', 'mijn-ledenportaal' ); ?>
                             </a>
                         <?php endif; ?>
-                        <p class="description"><?php esc_html_e( 'Shortcode: [ledenportaal_login]', 'mijn-ledenportaal' ); ?></p>
                     </td>
                 </tr>
                 <tr>
@@ -110,7 +126,6 @@ function lp_admin_instellingen_pagina() {
                                 <?php esc_html_e( 'Bekijk', 'mijn-ledenportaal' ); ?>
                             </a>
                         <?php endif; ?>
-                        <p class="description"><?php esc_html_e( 'Shortcode: [ledenportaal_account]', 'mijn-ledenportaal' ); ?></p>
                     </td>
                 </tr>
                 <tr>
@@ -131,7 +146,6 @@ function lp_admin_instellingen_pagina() {
                                 <?php esc_html_e( 'Bekijk', 'mijn-ledenportaal' ); ?>
                             </a>
                         <?php endif; ?>
-                        <p class="description"><?php esc_html_e( 'Shortcode: [ledenportaal_registratie]', 'mijn-ledenportaal' ); ?></p>
                     </td>
                 </tr>
                 <tr>

@@ -65,124 +65,135 @@ function lp_land_opties() {
 }
 
 /**
+ * Al ingelogd → redirect weg van registratiepagina
+ */
+add_action( 'template_redirect', function() {
+    if ( ! is_user_logged_in() ) return;
+    $reg_id = get_option( 'lp_registratie_pagina_id', 0 );
+    if ( $reg_id && is_page( $reg_id ) ) {
+        $account_id = get_option( 'lp_account_pagina_id', 0 );
+        wp_safe_redirect( $account_id ? get_permalink( $account_id ) : home_url() );
+        exit;
+    }
+} );
+
+/**
+ * POST-verwerking in init — vóór alle output
+ */
+add_action( 'init', 'lp_verwerk_registratie' );
+
+function lp_verwerk_registratie() {
+    if ( ! isset( $_POST['lp_registratie_submit'] ) ) return;
+
+    if ( ! isset( $_POST['lp_registratie_nonce'] ) || ! wp_verify_nonce( $_POST['lp_registratie_nonce'], 'lp_registratie' ) ) {
+        $token = lp_sla_fouten_op( 'registratie', [ __( 'Beveiligingscontrole mislukt. Probeer opnieuw.', 'mijn-ledenportaal' ) ] );
+        wp_safe_redirect( add_query_arg( 'lp_fout_registratie', $token, lp_huidige_url() ) );
+        exit;
+    }
+
+    // Saniteer input
+    $data = [
+        'voornaam'              => sanitize_text_field( $_POST['voornaam'] ?? '' ),
+        'achternaam'            => sanitize_text_field( $_POST['achternaam'] ?? '' ),
+        'email'                 => sanitize_email( $_POST['email'] ?? '' ),
+        'wachtwoord'            => $_POST['wachtwoord'] ?? '',
+        'wachtwoord2'           => $_POST['wachtwoord2'] ?? '',
+        'geslacht'              => sanitize_key( $_POST['geslacht'] ?? '' ),
+        'geboortedatum'         => sanitize_text_field( $_POST['geboortedatum'] ?? '' ),
+        'telefoonnummer'        => sanitize_text_field( $_POST['telefoonnummer'] ?? '' ),
+        'mobiel'                => sanitize_text_field( $_POST['mobiel'] ?? '' ),
+        'straatnaam'            => sanitize_text_field( $_POST['straatnaam'] ?? '' ),
+        'huisnummer'            => sanitize_text_field( $_POST['huisnummer'] ?? '' ),
+        'huisnummer_toevoeging' => sanitize_text_field( $_POST['huisnummer_toevoeging'] ?? '' ),
+        'postcode'              => sanitize_text_field( $_POST['postcode'] ?? '' ),
+        'plaats'                => sanitize_text_field( $_POST['plaats'] ?? '' ),
+        'land'                  => sanitize_key( $_POST['land'] ?? 'NL' ),
+        'afdeling'              => sanitize_key( $_POST['afdeling'] ?? '' ),
+        'soort_pensioen'        => sanitize_key( $_POST['soort_pensioen'] ?? '' ),
+        'verenigingsfunctie'    => array_map( 'sanitize_key', (array) ( $_POST['verenigingsfunctie'] ?? [] ) ),
+    ];
+
+    // Validatie
+    $fouten = [];
+    if ( empty( $data['voornaam'] ) )   $fouten[] = __( 'Voornaam is verplicht.', 'mijn-ledenportaal' );
+    if ( empty( $data['achternaam'] ) ) $fouten[] = __( 'Achternaam is verplicht.', 'mijn-ledenportaal' );
+    if ( ! is_email( $data['email'] ) ) $fouten[] = __( 'Voer een geldig e-mailadres in.', 'mijn-ledenportaal' );
+    if ( email_exists( $data['email'] ) ) $fouten[] = __( 'Dit e-mailadres is al geregistreerd.', 'mijn-ledenportaal' );
+    if ( empty( $data['wachtwoord'] ) )             $fouten[] = __( 'Wachtwoord is verplicht.', 'mijn-ledenportaal' );
+    if ( strlen( $data['wachtwoord'] ) < 8 )        $fouten[] = __( 'Wachtwoord moet minimaal 8 tekens bevatten.', 'mijn-ledenportaal' );
+    if ( $data['wachtwoord'] !== $data['wachtwoord2'] ) $fouten[] = __( 'Wachtwoorden komen niet overeen.', 'mijn-ledenportaal' );
+
+    // Saniteer optiekeuzevelden
+    if ( ! in_array( $data['geslacht'], array_keys( lp_geslacht_opties() ), true ) )       $data['geslacht'] = '';
+    if ( ! in_array( $data['afdeling'], array_keys( lp_afdeling_opties() ), true ) )       $data['afdeling'] = '';
+    if ( ! in_array( $data['soort_pensioen'], array_keys( lp_pensioen_opties() ), true ) ) $data['soort_pensioen'] = '';
+    if ( ! in_array( $data['land'], array_keys( lp_land_opties() ), true ) )               $data['land'] = 'NL';
+
+    if ( ! empty( $fouten ) ) {
+        $token = lp_sla_fouten_op( 'registratie', $fouten );
+        // Sla formulierdata tijdelijk op (60s) zodat velden bewaard blijven
+        set_transient( 'lp_reg_data_' . $token, $data, 60 );
+        wp_safe_redirect( add_query_arg( 'lp_fout_registratie', $token, lp_huidige_url() ) );
+        exit;
+    }
+
+    // Aanmaken gebruiker
+    $user_id = wp_insert_user( [
+        'user_login'   => $data['email'],
+        'user_email'   => $data['email'],
+        'user_pass'    => $data['wachtwoord'],
+        'first_name'   => $data['voornaam'],
+        'last_name'    => $data['achternaam'],
+        'display_name' => $data['voornaam'] . ' ' . $data['achternaam'],
+        'role'         => 'subscriber',
+    ] );
+
+    if ( is_wp_error( $user_id ) ) {
+        $token = lp_sla_fouten_op( 'registratie', [ $user_id->get_error_message() ] );
+        wp_safe_redirect( add_query_arg( 'lp_fout_registratie', $token, lp_huidige_url() ) );
+        exit;
+    }
+
+    // Sla meta op
+    update_user_meta( $user_id, 'lp_geslacht',              $data['geslacht'] );
+    update_user_meta( $user_id, 'lp_geboortedatum',         $data['geboortedatum'] );
+    update_user_meta( $user_id, 'lp_telefoonnummer',        $data['telefoonnummer'] );
+    update_user_meta( $user_id, 'lp_mobiel',                $data['mobiel'] );
+    update_user_meta( $user_id, 'lp_straatnaam',            $data['straatnaam'] );
+    update_user_meta( $user_id, 'lp_huisnummer',            $data['huisnummer'] );
+    update_user_meta( $user_id, 'lp_huisnummer_toevoeging', $data['huisnummer_toevoeging'] );
+    update_user_meta( $user_id, 'lp_postcode',              $data['postcode'] );
+    update_user_meta( $user_id, 'lp_plaats',                $data['plaats'] );
+    update_user_meta( $user_id, 'lp_land',                  $data['land'] );
+    update_user_meta( $user_id, 'lp_afdeling',              $data['afdeling'] );
+    update_user_meta( $user_id, 'lp_soort_pensioen',        $data['soort_pensioen'] );
+    update_user_meta( $user_id, 'lp_account_status',        'pending' );
+
+    $geldige_functies = array_keys( lp_functie_opties() );
+    foreach ( $data['verenigingsfunctie'] as $keuze ) {
+        if ( in_array( $keuze, $geldige_functies, true ) ) {
+            add_user_meta( $user_id, 'lp_verenigingsfunctie', $keuze );
+        }
+    }
+
+    do_action( 'lp_na_registratie', $user_id );
+
+    wp_safe_redirect( add_query_arg( 'lp_succes', 'registratie', lp_huidige_url() ) );
+    exit;
+}
+
+/**
  * Shortcode: [ledenportaal_registratie]
  */
 add_shortcode( 'ledenportaal_registratie', 'lp_render_registratie' );
 
 function lp_render_registratie() {
-    // Al ingelogd → redirect naar accountpagina
-    if ( is_user_logged_in() ) {
-        $account_id = get_option( 'lp_account_pagina_id', 0 );
-        if ( $account_id ) {
-            wp_redirect( get_permalink( $account_id ) );
-            exit;
-        }
-    }
+    $fouten = lp_haal_fouten_op( 'registratie' );
+    $succes = isset( $_GET['lp_succes'] ) && $_GET['lp_succes'] === 'registratie';
 
-    $fouten  = [];
-    $succes  = false;
-
-    if ( isset( $_POST['lp_registratie_submit'] ) ) {
-        // 1. Nonce validatie
-        if ( ! isset( $_POST['lp_registratie_nonce'] ) || ! wp_verify_nonce( $_POST['lp_registratie_nonce'], 'lp_registratie' ) ) {
-            $fouten[] = __( 'Beveiligingscontrole mislukt. Probeer opnieuw.', 'mijn-ledenportaal' );
-        } else {
-            // 2. Saniteer input
-            $voornaam     = sanitize_text_field( $_POST['voornaam'] ?? '' );
-            $achternaam   = sanitize_text_field( $_POST['achternaam'] ?? '' );
-            $email        = sanitize_email( $_POST['email'] ?? '' );
-            $wachtwoord   = $_POST['wachtwoord'] ?? '';
-            $wachtwoord2  = $_POST['wachtwoord2'] ?? '';
-            $geslacht     = sanitize_key( $_POST['geslacht'] ?? '' );
-            $geboortedatum = sanitize_text_field( $_POST['geboortedatum'] ?? '' );
-            $telefoonnummer = sanitize_text_field( $_POST['telefoonnummer'] ?? '' );
-            $mobiel       = sanitize_text_field( $_POST['mobiel'] ?? '' );
-            $straatnaam   = sanitize_text_field( $_POST['straatnaam'] ?? '' );
-            $huisnummer   = sanitize_text_field( $_POST['huisnummer'] ?? '' );
-            $huisnummer_toevoeging = sanitize_text_field( $_POST['huisnummer_toevoeging'] ?? '' );
-            $postcode     = sanitize_text_field( $_POST['postcode'] ?? '' );
-            $plaats       = sanitize_text_field( $_POST['plaats'] ?? '' );
-            $land         = sanitize_key( $_POST['land'] ?? 'NL' );
-            $afdeling     = sanitize_key( $_POST['afdeling'] ?? '' );
-            $soort_pensioen = sanitize_key( $_POST['soort_pensioen'] ?? '' );
-
-            // 3. Validatie
-            if ( empty( $voornaam ) ) $fouten[] = __( 'Voornaam is verplicht.', 'mijn-ledenportaal' );
-            if ( empty( $achternaam ) ) $fouten[] = __( 'Achternaam is verplicht.', 'mijn-ledenportaal' );
-            if ( empty( $email ) || ! is_email( $email ) ) $fouten[] = __( 'Voer een geldig e-mailadres in.', 'mijn-ledenportaal' );
-            if ( empty( $wachtwoord ) ) $fouten[] = __( 'Wachtwoord is verplicht.', 'mijn-ledenportaal' );
-            if ( strlen( $wachtwoord ) < 8 ) $fouten[] = __( 'Wachtwoord moet minimaal 8 tekens bevatten.', 'mijn-ledenportaal' );
-            if ( $wachtwoord !== $wachtwoord2 ) $fouten[] = __( 'Wachtwoorden komen niet overeen.', 'mijn-ledenportaal' );
-            if ( email_exists( $email ) ) $fouten[] = __( 'Dit e-mailadres is al geregistreerd.', 'mijn-ledenportaal' );
-
-            // Geldige opties controleren
-            $geldige_geslachten = array_keys( lp_geslacht_opties() );
-            if ( ! empty( $geslacht ) && ! in_array( $geslacht, $geldige_geslachten, true ) ) {
-                $geslacht = '';
-            }
-            $geldige_afdelingen = array_keys( lp_afdeling_opties() );
-            if ( ! empty( $afdeling ) && ! in_array( $afdeling, $geldige_afdelingen, true ) ) {
-                $afdeling = '';
-            }
-            $geldige_pensioenen = array_keys( lp_pensioen_opties() );
-            if ( ! empty( $soort_pensioen ) && ! in_array( $soort_pensioen, $geldige_pensioenen, true ) ) {
-                $soort_pensioen = '';
-            }
-            $geldige_landen = array_keys( lp_land_opties() );
-            if ( ! in_array( $land, $geldige_landen, true ) ) {
-                $land = 'NL';
-            }
-
-            // 4. Aanmaken gebruiker
-            if ( empty( $fouten ) ) {
-                $user_id = wp_insert_user( [
-                    'user_login'  => $email,
-                    'user_email'  => $email,
-                    'user_pass'   => $wachtwoord,
-                    'first_name'  => $voornaam,
-                    'last_name'   => $achternaam,
-                    'display_name' => $voornaam . ' ' . $achternaam,
-                    'role'        => 'subscriber',
-                ] );
-
-                if ( is_wp_error( $user_id ) ) {
-                    $fouten[] = $user_id->get_error_message();
-                } else {
-                    // 5. Sla meta op
-                    update_user_meta( $user_id, 'lp_geslacht', $geslacht );
-                    update_user_meta( $user_id, 'lp_geboortedatum', $geboortedatum );
-                    update_user_meta( $user_id, 'lp_telefoonnummer', $telefoonnummer );
-                    update_user_meta( $user_id, 'lp_mobiel', $mobiel );
-                    update_user_meta( $user_id, 'lp_straatnaam', $straatnaam );
-                    update_user_meta( $user_id, 'lp_huisnummer', $huisnummer );
-                    update_user_meta( $user_id, 'lp_huisnummer_toevoeging', $huisnummer_toevoeging );
-                    update_user_meta( $user_id, 'lp_postcode', $postcode );
-                    update_user_meta( $user_id, 'lp_plaats', $plaats );
-                    update_user_meta( $user_id, 'lp_land', $land );
-                    update_user_meta( $user_id, 'lp_afdeling', $afdeling );
-                    update_user_meta( $user_id, 'lp_soort_pensioen', $soort_pensioen );
-
-                    // Verenigingsfunctie (meerkeuze)
-                    delete_user_meta( $user_id, 'lp_verenigingsfunctie' );
-                    $geselecteerde_functies = array_map( 'sanitize_key', $_POST['verenigingsfunctie'] ?? [] );
-                    $geldige_functies = array_keys( lp_functie_opties() );
-                    foreach ( $geselecteerde_functies as $keuze ) {
-                        if ( in_array( $keuze, $geldige_functies, true ) ) {
-                            add_user_meta( $user_id, 'lp_verenigingsfunctie', $keuze );
-                        }
-                    }
-
-                    // 6. Account status pending
-                    update_user_meta( $user_id, 'lp_account_status', 'pending' );
-
-                    // 7. Trigger mail action
-                    do_action( 'lp_na_registratie', $user_id );
-
-                    $succes = true;
-                }
-            }
-        }
-    }
+    // Herstel formulierdata bij fout
+    $token   = sanitize_key( $_GET['lp_fout_registratie'] ?? '' );
+    $ingevoerd = $token ? ( get_transient( 'lp_reg_data_' . $token ) ?: [] ) : [];
 
     ob_start();
     include LP_PATH . 'templates/registratie-form.php';
