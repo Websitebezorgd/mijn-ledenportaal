@@ -634,34 +634,37 @@ function lp_admin_ledenbeheer_pagina() {
         }
     }
 
-    // Haal gebruikers op met lp_account_status meta
     $filter_status = sanitize_key( $_GET['lp_filter'] ?? 'all' );
 
     $query_args = [
         'meta_key'     => 'lp_account_status',
         'meta_compare' => 'EXISTS',
-        'number'       => 100,
+        'number'       => 200,
         'orderby'      => 'registered',
         'order'        => 'DESC',
     ];
-
     if ( $filter_status !== 'all' ) {
         $query_args['meta_value'] = $filter_status;
     }
 
     $gebruikers = get_users( $query_args );
 
-    $status_labels = [
+    $status_labels  = [
         'pending'  => __( 'In afwachting', 'mijn-ledenportaal' ),
         'approved' => __( 'Goedgekeurd', 'mijn-ledenportaal' ),
         'rejected' => __( 'Afgewezen', 'mijn-ledenportaal' ),
     ];
-
     $status_kleuren = [
         'pending'  => '#f0ad4e',
         'approved' => '#5cb85c',
         'rejected' => '#d9534f',
     ];
+
+    $geslacht_opties = lp_geslacht_opties();
+    $afdeling_opties = lp_afdeling_opties();
+    $pensioen_opties = lp_pensioen_opties();
+    $functie_opties  = lp_functie_opties();
+    $land_opties     = lp_land_opties();
 
     $huidige_url = admin_url( 'admin.php?page=lp-ledenbeheer' );
     ?>
@@ -678,68 +681,183 @@ function lp_admin_ledenbeheer_pagina() {
         <?php if ( empty( $gebruikers ) ) : ?>
             <p><?php esc_html_e( 'Geen leden gevonden.', 'mijn-ledenportaal' ); ?></p>
         <?php else : ?>
-            <table class="wp-list-table widefat fixed striped" style="margin-top: 20px;">
-                <thead>
-                    <tr>
-                        <th><?php esc_html_e( 'Naam', 'mijn-ledenportaal' ); ?></th>
-                        <th><?php esc_html_e( 'E-mail', 'mijn-ledenportaal' ); ?></th>
-                        <th><?php esc_html_e( 'Geregistreerd', 'mijn-ledenportaal' ); ?></th>
-                        <th><?php esc_html_e( 'Laatst gewijzigd', 'mijn-ledenportaal' ); ?></th>
-                        <th><?php esc_html_e( 'Status', 'mijn-ledenportaal' ); ?></th>
-                        <th><?php esc_html_e( 'Acties', 'mijn-ledenportaal' ); ?></th>
+        <table class="wp-list-table widefat" style="margin-top: 20px; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="width: 32px;"></th>
+                    <th><?php esc_html_e( 'Naam', 'mijn-ledenportaal' ); ?></th>
+                    <th><?php esc_html_e( 'E-mail', 'mijn-ledenportaal' ); ?></th>
+                    <th><?php esc_html_e( 'Geregistreerd', 'mijn-ledenportaal' ); ?></th>
+                    <th><?php esc_html_e( 'Laatst gewijzigd', 'mijn-ledenportaal' ); ?></th>
+                    <th><?php esc_html_e( 'Status', 'mijn-ledenportaal' ); ?></th>
+                    <th><?php esc_html_e( 'Acties', 'mijn-ledenportaal' ); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ( $gebruikers as $i => $gebruiker ) :
+                    $uid             = $gebruiker->ID;
+                    $status          = get_user_meta( $uid, 'lp_account_status', true );
+                    $kleur           = $status_kleuren[ $status ] ?? '#999';
+                    $label           = $status_labels[ $status ] ?? esc_html( $status );
+                    $gewijzigd_datum = get_user_meta( $uid, 'lp_account_gewijzigd', true );
+                    $detail_id       = 'lp-detail-' . $uid;
+                    $rij_bg          = $i % 2 === 0 ? '#fff' : '#f9f9f9';
+
+                    // Alle meta voor detailrij
+                    $m = [
+                        'geslacht'              => get_user_meta( $uid, 'lp_geslacht', true ),
+                        'geboortedatum'         => get_user_meta( $uid, 'lp_geboortedatum', true ),
+                        'telefoonnummer'        => get_user_meta( $uid, 'lp_telefoonnummer', true ),
+                        'mobiel'                => get_user_meta( $uid, 'lp_mobiel', true ),
+                        'straatnaam'            => get_user_meta( $uid, 'lp_straatnaam', true ),
+                        'huisnummer'            => get_user_meta( $uid, 'lp_huisnummer', true ),
+                        'huisnummer_toevoeging' => get_user_meta( $uid, 'lp_huisnummer_toevoeging', true ),
+                        'postcode'              => get_user_meta( $uid, 'lp_postcode', true ),
+                        'plaats'                => get_user_meta( $uid, 'lp_plaats', true ),
+                        'land'                  => get_user_meta( $uid, 'lp_land', true ),
+                        'afdeling'              => get_user_meta( $uid, 'lp_afdeling', true ),
+                        'soort_pensioen'        => get_user_meta( $uid, 'lp_soort_pensioen', true ),
+                        'verenigingsfunctie'    => get_user_meta( $uid, 'lp_verenigingsfunctie' ),
+                        'iban'                  => get_user_meta( $uid, 'lp_iban', true ),
+                        'iban_ten_name_van'     => get_user_meta( $uid, 'lp_iban_ten_name_van', true ),
+                        'incasso_toestemming'   => get_user_meta( $uid, 'lp_incasso_toestemming', true ),
+                        'incasso_datum'         => get_user_meta( $uid, 'lp_incasso_toestemming_datum', true ),
+                    ];
+
+                    $adres_delen = array_filter( [
+                        trim( $m['straatnaam'] . ' ' . $m['huisnummer'] . ' ' . $m['huisnummer_toevoeging'] ),
+                        trim( $m['postcode'] . '  ' . $m['plaats'] ),
+                        $land_opties[ $m['land'] ] ?? $m['land'],
+                    ] );
+
+                    $functies_labels = array_filter( array_map(
+                        fn( $k ) => $functie_opties[ $k ] ?? null,
+                        (array) $m['verenigingsfunctie']
+                    ) );
+                ?>
+                    <tr style="background: <?php echo esc_attr( $rij_bg ); ?>; border-bottom: 1px solid #e0e0e0;">
+                        <td style="text-align: center; padding: 10px 6px;">
+                            <button type="button"
+                                class="lp-detail-toggle"
+                                data-target="<?php echo esc_attr( $detail_id ); ?>"
+                                aria-expanded="false"
+                                style="background: none; border: none; cursor: pointer; padding: 2px; color: #2271b1; font-size: 18px; line-height: 1;">
+                                &#9654;
+                            </button>
+                        </td>
+                        <td style="padding: 10px 8px;">
+                            <strong><?php echo esc_html( $gebruiker->display_name ); ?></strong>
+                        </td>
+                        <td style="padding: 10px 8px;"><?php echo esc_html( $gebruiker->user_email ); ?></td>
+                        <td style="padding: 10px 8px;"><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $gebruiker->user_registered ) ) ); ?></td>
+                        <td style="padding: 10px 8px;"><?php echo $gewijzigd_datum ? esc_html( date_i18n( 'd-m-Y H:i', strtotime( $gewijzigd_datum ) ) ) : '—'; ?></td>
+                        <td style="padding: 10px 8px;">
+                            <span style="background: <?php echo esc_attr( $kleur ); ?>; color: white; padding: 3px 8px; border-radius: 3px; font-size: 12px;">
+                                <?php echo esc_html( $label ); ?>
+                            </span>
+                        </td>
+                        <td style="padding: 10px 8px; white-space: nowrap;">
+                            <?php if ( $status !== 'approved' ) : ?>
+                                <form method="post" style="display: inline;">
+                                    <?php wp_nonce_field( 'lp_ledenbeheer', 'lp_ledenbeheer_nonce' ); ?>
+                                    <input type="hidden" name="lp_user_id" value="<?php echo esc_attr( $uid ); ?>">
+                                    <input type="hidden" name="lp_ledenbeheer_actie" value="goedkeuren">
+                                    <button type="submit" class="button button-primary button-small">
+                                        <?php esc_html_e( 'Goedkeuren', 'mijn-ledenportaal' ); ?>
+                                    </button>
+                                </form>
+                            <?php endif; ?>
+                            <?php if ( $status !== 'rejected' ) : ?>
+                                <form method="post" style="display: inline; margin-left: 4px;">
+                                    <?php wp_nonce_field( 'lp_ledenbeheer', 'lp_ledenbeheer_nonce' ); ?>
+                                    <input type="hidden" name="lp_user_id" value="<?php echo esc_attr( $uid ); ?>">
+                                    <input type="hidden" name="lp_ledenbeheer_actie" value="afwijzen">
+                                    <button type="submit" class="button button-small" style="color: #d9534f; border-color: #d9534f;"
+                                        onclick="return confirm('<?php esc_attr_e( 'Weet je zeker dat je dit account wilt afwijzen?', 'mijn-ledenportaal' ); ?>')">
+                                        <?php esc_html_e( 'Afwijzen', 'mijn-ledenportaal' ); ?>
+                                    </button>
+                                </form>
+                            <?php endif; ?>
+                            <a href="<?php echo esc_url( get_edit_user_link( $uid ) ); ?>" class="button button-small" style="margin-left: 4px;">
+                                <?php esc_html_e( 'Bewerken', 'mijn-ledenportaal' ); ?>
+                            </a>
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    <?php foreach ( $gebruikers as $gebruiker ) :
-                        $status          = get_user_meta( $gebruiker->ID, 'lp_account_status', true );
-                        $kleur           = $status_kleuren[ $status ] ?? '#999';
-                        $label           = $status_labels[ $status ] ?? esc_html( $status );
-                        $gewijzigd_datum = get_user_meta( $gebruiker->ID, 'lp_account_gewijzigd', true );
-                    ?>
-                        <tr>
-                            <td>
-                                <strong><?php echo esc_html( $gebruiker->display_name ); ?></strong>
-                                <br>
-                                <a href="<?php echo esc_url( get_edit_user_link( $gebruiker->ID ) ); ?>" class="button button-small">
-                                    <?php esc_html_e( 'Bewerken', 'mijn-ledenportaal' ); ?>
-                                </a>
-                            </td>
-                            <td><?php echo esc_html( $gebruiker->user_email ); ?></td>
-                            <td><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $gebruiker->user_registered ) ) ); ?></td>
-                            <td><?php echo $gewijzigd_datum ? esc_html( date_i18n( 'd-m-Y H:i', strtotime( $gewijzigd_datum ) ) ) : '—'; ?></td>
-                            <td>
-                                <span style="background: <?php echo esc_attr( $kleur ); ?>; color: white; padding: 3px 8px; border-radius: 3px; font-size: 12px;">
-                                    <?php echo esc_html( $label ); ?>
-                                </span>
-                            </td>
-                            <td>
-                                <?php if ( $status !== 'approved' ) : ?>
-                                    <form method="post" style="display: inline;">
-                                        <?php wp_nonce_field( 'lp_ledenbeheer', 'lp_ledenbeheer_nonce' ); ?>
-                                        <input type="hidden" name="lp_user_id" value="<?php echo esc_attr( $gebruiker->ID ); ?>">
-                                        <input type="hidden" name="lp_ledenbeheer_actie" value="goedkeuren">
-                                        <button type="submit" class="button button-primary button-small">
-                                            <?php esc_html_e( 'Goedkeuren', 'mijn-ledenportaal' ); ?>
-                                        </button>
-                                    </form>
-                                <?php endif; ?>
-                                <?php if ( $status !== 'rejected' ) : ?>
-                                    <form method="post" style="display: inline; margin-left: 4px;">
-                                        <?php wp_nonce_field( 'lp_ledenbeheer', 'lp_ledenbeheer_nonce' ); ?>
-                                        <input type="hidden" name="lp_user_id" value="<?php echo esc_attr( $gebruiker->ID ); ?>">
-                                        <input type="hidden" name="lp_ledenbeheer_actie" value="afwijzen">
-                                        <button type="submit" class="button button-small" style="color: #d9534f; border-color: #d9534f;"
-                                            onclick="return confirm('<?php esc_attr_e( 'Weet je zeker dat je dit account wilt afwijzen?', 'mijn-ledenportaal' ); ?>')">
-                                            <?php esc_html_e( 'Afwijzen', 'mijn-ledenportaal' ); ?>
-                                        </button>
-                                    </form>
-                                <?php endif; ?>
-                            </td>
-                        </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+
+                    <!-- Detailrij -->
+                    <tr id="<?php echo esc_attr( $detail_id ); ?>" style="display: none; background: #f0f6fc;">
+                        <td></td>
+                        <td colspan="6" style="padding: 16px 20px 20px;">
+                            <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 20px;">
+
+                                <div>
+                                    <strong style="display: block; margin-bottom: 8px; color: #1d2327; font-size: 12px; text-transform: uppercase; letter-spacing: .05em;"><?php esc_html_e( 'Persoonlijk', 'mijn-ledenportaal' ); ?></strong>
+                                    <?php lp_detail_rij( 'Geslacht', $geslacht_opties[ $m['geslacht'] ] ?? '' ); ?>
+                                    <?php lp_detail_rij( 'Geboortedatum', $m['geboortedatum'] ? date_i18n( 'd-m-Y', strtotime( $m['geboortedatum'] ) ) : '' ); ?>
+                                    <?php lp_detail_rij( 'Telefoonnummer', $m['telefoonnummer'] ); ?>
+                                    <?php lp_detail_rij( 'Mobiel', $m['mobiel'] ); ?>
+                                </div>
+
+                                <div>
+                                    <strong style="display: block; margin-bottom: 8px; color: #1d2327; font-size: 12px; text-transform: uppercase; letter-spacing: .05em;"><?php esc_html_e( 'Adres', 'mijn-ledenportaal' ); ?></strong>
+                                    <?php foreach ( $adres_delen as $deel ) : ?>
+                                        <div style="font-size: 13px; margin-bottom: 3px; color: #3c434a;"><?php echo esc_html( $deel ); ?></div>
+                                    <?php endforeach; ?>
+                                    <?php if ( empty( $adres_delen ) ) : ?>
+                                        <span style="color: #999; font-size: 13px;">—</span>
+                                    <?php endif; ?>
+                                </div>
+
+                                <div>
+                                    <strong style="display: block; margin-bottom: 8px; color: #1d2327; font-size: 12px; text-transform: uppercase; letter-spacing: .05em;"><?php esc_html_e( 'Lidmaatschap', 'mijn-ledenportaal' ); ?></strong>
+                                    <?php lp_detail_rij( 'Afdeling', $afdeling_opties[ $m['afdeling'] ] ?? '' ); ?>
+                                    <?php lp_detail_rij( 'Soort pensioen', $pensioen_opties[ $m['soort_pensioen'] ] ?? '' ); ?>
+                                    <?php lp_detail_rij( 'Verenigingsfunctie', implode( ', ', $functies_labels ) ?: '' ); ?>
+                                </div>
+
+                                <div>
+                                    <strong style="display: block; margin-bottom: 8px; color: #1d2327; font-size: 12px; text-transform: uppercase; letter-spacing: .05em;"><?php esc_html_e( 'Betaalgegevens', 'mijn-ledenportaal' ); ?></strong>
+                                    <?php lp_detail_rij( 'IBAN', $m['iban'] ); ?>
+                                    <?php lp_detail_rij( 'Ten name van', $m['iban_ten_name_van'] ); ?>
+                                    <?php if ( $m['incasso_toestemming'] === '1' ) : ?>
+                                        <?php lp_detail_rij( 'Incasso', __( 'Toestemming gegeven', 'mijn-ledenportaal' ) . ( $m['incasso_datum'] ? ' (' . date_i18n( 'd-m-Y', strtotime( $m['incasso_datum'] ) ) . ')' : '' ) ); ?>
+                                    <?php else : ?>
+                                        <?php lp_detail_rij( 'Incasso', __( 'Geen toestemming', 'mijn-ledenportaal' ) ); ?>
+                                    <?php endif; ?>
+                                </div>
+
+                            </div>
+                        </td>
+                    </tr>
+
+                <?php endforeach; ?>
+            </tbody>
+        </table>
         <?php endif; ?>
+    </div>
+    <script>
+    document.querySelectorAll('.lp-detail-toggle').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var rij = document.getElementById(this.dataset.target);
+            var open = this.getAttribute('aria-expanded') === 'true';
+            rij.style.display = open ? 'none' : 'table-row';
+            this.setAttribute('aria-expanded', open ? 'false' : 'true');
+            this.innerHTML = open ? '&#9654;' : '&#9660;';
+        });
+    });
+    </script>
+    <?php
+}
+
+/**
+ * Helper: één label + waarde rij in detailpaneel
+ */
+function lp_detail_rij( $label, $waarde ) {
+    $waarde = (string) $waarde;
+    ?>
+    <div style="display: flex; gap: 6px; font-size: 13px; margin-bottom: 4px; line-height: 1.4;">
+        <span style="color: #646970; min-width: 120px; flex-shrink: 0;"><?php echo esc_html( $label ); ?></span>
+        <span style="color: #3c434a;"><?php echo $waarde !== '' ? esc_html( $waarde ) : '<span style="color:#999">—</span>'; ?></span>
     </div>
     <?php
 }
