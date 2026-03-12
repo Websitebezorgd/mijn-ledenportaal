@@ -1,0 +1,14 @@
+# Dependencies (als je later npm/composer gebruikt)
+node_modules/
+vendor/
+
+# OS rommel
+.DS_Store
+Thumbs.db
+
+# IDE bestanden
+.vscode/
+.idea/
+
+# Local Sites specifiek
+*.log
