@@ -54,8 +54,15 @@ function lp_verwerk_login() {
         exit;
     }
 
-    $account_id = get_option( 'lp_account_pagina_id', 0 );
-    wp_safe_redirect( $account_id ? get_permalink( $account_id ) : home_url() );
+    // Stuur terug naar de pagina waar de bezoeker vandaan kwam (via lp_redirect param)
+    $redirect_naar = isset( $_POST['lp_redirect'] ) ? esc_url_raw( urldecode( $_POST['lp_redirect'] ) ) : '';
+
+    if ( $redirect_naar && wp_validate_redirect( $redirect_naar, false ) ) {
+        wp_safe_redirect( $redirect_naar );
+    } else {
+        $account_id = get_option( 'lp_account_pagina_id', 0 );
+        wp_safe_redirect( $account_id ? get_permalink( $account_id ) : home_url() );
+    }
     exit;
 }
 

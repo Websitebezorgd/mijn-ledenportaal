@@ -33,7 +33,7 @@ add_action( 'template_redirect', function() {
 
     if ( ! empty( $beveiligde_paginas ) && is_page( $beveiligde_paginas ) ) {
         $redirect = $login_pagina_id
-            ? add_query_arg( 'lp_redirect', urlencode( get_permalink() ), get_permalink( $login_pagina_id ) )
+            ? add_query_arg( [ 'lp_status' => 'toegang_geweigerd', 'lp_redirect' => urlencode( get_permalink() ) ], get_permalink( $login_pagina_id ) )
             : home_url();
         wp_redirect( $redirect );
         exit;

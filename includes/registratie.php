@@ -107,7 +107,7 @@ function lp_verwerk_registratie() {
         'huisnummer_toevoeging' => sanitize_text_field( $_POST['huisnummer_toevoeging'] ?? '' ),
         'postcode'              => sanitize_text_field( $_POST['postcode'] ?? '' ),
         'plaats'                => sanitize_text_field( $_POST['plaats'] ?? '' ),
-        'land'                  => sanitize_key( $_POST['land'] ?? 'NL' ),
+        'land'                  => sanitize_text_field( $_POST['land'] ?? 'NL' ),
         'afdeling'              => sanitize_key( $_POST['afdeling'] ?? '' ),
         'soort_pensioen'        => sanitize_key( $_POST['soort_pensioen'] ?? '' ),
         'verenigingsfunctie'    => array_map( 'sanitize_key', (array) ( $_POST['verenigingsfunctie'] ?? [] ) ),

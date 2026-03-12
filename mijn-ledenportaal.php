@@ -39,10 +39,11 @@ function lp_haal_fouten_op( $sleutel ) {
  */
 function lp_huidige_url() {
     $url = ( is_ssl() ? 'https' : 'http' ) . '://' . $_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI'];
-    return remove_query_arg( [ 'lp_fout_login', 'lp_fout_registratie', 'lp_fout_account', 'lp_status' ], $url );
+    return remove_query_arg( [ 'lp_fout_login', 'lp_fout_registratie', 'lp_fout_account', 'lp_fout_wachtwoord_vergeten', 'lp_fout_nieuw_wachtwoord', 'lp_status' ], $url );
 }
 
 require_once LP_PATH . 'includes/registratie.php';
+require_once LP_PATH . 'includes/wachtwoord.php';
 require_once LP_PATH . 'includes/login.php';
 require_once LP_PATH . 'includes/account.php';
 require_once LP_PATH . 'includes/afscherming.php';
@@ -60,5 +61,7 @@ register_activation_hook( __FILE__, function() {
     add_option( 'lp_login_pagina_id', 0 );
     add_option( 'lp_account_pagina_id', 0 );
     add_option( 'lp_registratie_pagina_id', 0 );
+    add_option( 'lp_wachtwoord_vergeten_pagina_id', 0 );
+    add_option( 'lp_nieuw_wachtwoord_pagina_id', 0 );
     add_option( 'lp_beveiligde_paginas', [] );
 } );

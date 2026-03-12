@@ -2,6 +2,12 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 // Beschikbare variabelen: $fouten (array)
 
+// Succes melding na wachtwoord reset
+$succes_melding = '';
+if ( isset( $_GET['lp_succes'] ) && sanitize_key( $_GET['lp_succes'] ) === 'nieuw_wachtwoord' ) {
+    $succes_melding = __( 'Je wachtwoord is opgeslagen. Je kunt nu inloggen.', 'mijn-ledenportaal' );
+}
+
 // Status melding bij redirect vanuit afscherming
 $status_melding = '';
 if ( isset( $_GET['lp_status'] ) ) {
@@ -10,6 +16,8 @@ if ( isset( $_GET['lp_status'] ) ) {
         $status_melding = __( 'Je account wacht nog op goedkeuring.', 'mijn-ledenportaal' );
     } elseif ( $lp_status === 'rejected' ) {
         $status_melding = __( 'Je aanmelding is helaas afgewezen.', 'mijn-ledenportaal' );
+    } elseif ( $lp_status === 'toegang_geweigerd' ) {
+        $status_melding = __( 'Je moet ingelogd zijn om deze pagina te bekijken.', 'mijn-ledenportaal' );
     }
 }
 
@@ -17,6 +25,12 @@ $registratie_id = get_option( 'lp_registratie_pagina_id', 0 );
 ?>
 
 <div class="lp-formulier-wrap lp-formulier-wrap--smal">
+
+    <?php if ( ! empty( $succes_melding ) ) : ?>
+        <div class="lp-melding lp-melding--succes">
+            <?php echo esc_html( $succes_melding ); ?>
+        </div>
+    <?php endif; ?>
 
     <?php if ( ! empty( $status_melding ) ) : ?>
         <div class="lp-melding lp-melding--waarschuwing">
@@ -36,6 +50,9 @@ $registratie_id = get_option( 'lp_registratie_pagina_id', 0 );
 
     <form class="lp-form" method="post" novalidate>
         <?php wp_nonce_field( 'lp_login', 'lp_login_nonce' ); ?>
+        <?php if ( ! empty( $_GET['lp_redirect'] ) ) : ?>
+            <input type="hidden" name="lp_redirect" value="<?php echo esc_attr( $_GET['lp_redirect'] ); ?>">
+        <?php endif; ?>
 
         <div class="lp-form-groep">
             <label class="lp-label" for="lp-login-email"><?php esc_html_e( 'E-mailadres', 'mijn-ledenportaal' ); ?> <span class="lp-verplicht">*</span></label>
@@ -60,7 +77,11 @@ $registratie_id = get_option( 'lp_registratie_pagina_id', 0 );
                 <input type="checkbox" name="onthouden" value="1" <?php checked( ! empty( $_POST['onthouden'] ) ); ?>>
                 <?php esc_html_e( 'Onthoud mij', 'mijn-ledenportaal' ); ?>
             </label>
-            <a href="<?php echo esc_url( wp_lostpassword_url() ); ?>" class="lp-link lp-link--klein">
+            <?php
+            $vergeten_id = get_option( 'lp_wachtwoord_vergeten_pagina_id', 0 );
+            $vergeten_url = $vergeten_id ? get_permalink( $vergeten_id ) : wp_lostpassword_url();
+            ?>
+            <a href="<?php echo esc_url( $vergeten_url ); ?>" class="lp-link lp-link--klein">
                 <?php esc_html_e( 'Wachtwoord vergeten?', 'mijn-ledenportaal' ); ?>
             </a>
         </div>

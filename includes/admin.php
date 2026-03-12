@@ -2,6 +2,213 @@
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
+ * Toon lp_ velden op de gebruikersprofiel pagina in de admin
+ */
+add_action( 'show_user_profile', 'lp_toon_profiel_velden' );
+add_action( 'edit_user_profile', 'lp_toon_profiel_velden' );
+
+function lp_toon_profiel_velden( $user ) {
+    $meta = [
+        'account_status'        => get_user_meta( $user->ID, 'lp_account_status', true ),
+        'geslacht'              => get_user_meta( $user->ID, 'lp_geslacht', true ),
+        'geboortedatum'         => get_user_meta( $user->ID, 'lp_geboortedatum', true ),
+        'telefoonnummer'        => get_user_meta( $user->ID, 'lp_telefoonnummer', true ),
+        'mobiel'                => get_user_meta( $user->ID, 'lp_mobiel', true ),
+        'straatnaam'            => get_user_meta( $user->ID, 'lp_straatnaam', true ),
+        'huisnummer'            => get_user_meta( $user->ID, 'lp_huisnummer', true ),
+        'huisnummer_toevoeging' => get_user_meta( $user->ID, 'lp_huisnummer_toevoeging', true ),
+        'postcode'              => get_user_meta( $user->ID, 'lp_postcode', true ),
+        'plaats'                => get_user_meta( $user->ID, 'lp_plaats', true ),
+        'land'                  => get_user_meta( $user->ID, 'lp_land', true ),
+        'afdeling'              => get_user_meta( $user->ID, 'lp_afdeling', true ),
+        'soort_pensioen'        => get_user_meta( $user->ID, 'lp_soort_pensioen', true ),
+        'verenigingsfunctie'    => get_user_meta( $user->ID, 'lp_verenigingsfunctie' ),
+    ];
+
+    $status_labels = [
+        'pending'  => __( 'In afwachting', 'mijn-ledenportaal' ),
+        'approved' => __( 'Goedgekeurd', 'mijn-ledenportaal' ),
+        'rejected' => __( 'Afgewezen', 'mijn-ledenportaal' ),
+    ];
+    $status_kleuren = [
+        'pending'  => '#f0ad4e',
+        'approved' => '#5cb85c',
+        'rejected' => '#d9534f',
+    ];
+    $status        = $meta['account_status'];
+    $status_label  = $status_labels[ $status ] ?? esc_html( $status );
+    $status_kleur  = $status_kleuren[ $status ] ?? '#999';
+    ?>
+    <h2><?php esc_html_e( 'Ledenportaal', 'mijn-ledenportaal' ); ?></h2>
+    <?php wp_nonce_field( 'lp_opslaan_profiel_' . $user->ID, 'lp_profiel_nonce' ); ?>
+    <table class="form-table">
+
+        <tr>
+            <th><label><?php esc_html_e( 'Accountstatus', 'mijn-ledenportaal' ); ?></label></th>
+            <td>
+                <select name="lp_account_status">
+                    <option value=""><?php esc_html_e( '— Geen —', 'mijn-ledenportaal' ); ?></option>
+                    <?php foreach ( $status_labels as $waarde => $label ) : ?>
+                        <option value="<?php echo esc_attr( $waarde ); ?>" <?php selected( $status, $waarde ); ?>>
+                            <?php echo esc_html( $label ); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <?php if ( $status ) : ?>
+                    <span style="margin-left:8px; background:<?php echo esc_attr( $status_kleur ); ?>; color:#fff; padding:2px 8px; border-radius:3px; font-size:12px;">
+                        <?php echo esc_html( $status_label ); ?>
+                    </span>
+                <?php endif; ?>
+            </td>
+        </tr>
+
+        <tr>
+            <th><label for="lp_geslacht"><?php esc_html_e( 'Geslacht', 'mijn-ledenportaal' ); ?></label></th>
+            <td>
+                <select name="lp_geslacht" id="lp_geslacht">
+                    <option value=""><?php esc_html_e( '— Geen —', 'mijn-ledenportaal' ); ?></option>
+                    <?php foreach ( lp_geslacht_opties() as $waarde => $label ) : ?>
+                        <option value="<?php echo esc_attr( $waarde ); ?>" <?php selected( $meta['geslacht'], $waarde ); ?>>
+                            <?php echo esc_html( $label ); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </td>
+        </tr>
+
+        <tr>
+            <th><label for="lp_geboortedatum"><?php esc_html_e( 'Geboortedatum', 'mijn-ledenportaal' ); ?></label></th>
+            <td><input type="date" name="lp_geboortedatum" id="lp_geboortedatum" value="<?php echo esc_attr( $meta['geboortedatum'] ); ?>" class="regular-text"></td>
+        </tr>
+
+        <tr>
+            <th><label for="lp_telefoonnummer"><?php esc_html_e( 'Telefoonnummer', 'mijn-ledenportaal' ); ?></label></th>
+            <td><input type="text" name="lp_telefoonnummer" id="lp_telefoonnummer" value="<?php echo esc_attr( $meta['telefoonnummer'] ); ?>" class="regular-text"></td>
+        </tr>
+
+        <tr>
+            <th><label for="lp_mobiel"><?php esc_html_e( 'Mobiel', 'mijn-ledenportaal' ); ?></label></th>
+            <td><input type="text" name="lp_mobiel" id="lp_mobiel" value="<?php echo esc_attr( $meta['mobiel'] ); ?>" class="regular-text"></td>
+        </tr>
+
+        <tr>
+            <th><?php esc_html_e( 'Adres', 'mijn-ledenportaal' ); ?></th>
+            <td>
+                <input type="text" name="lp_straatnaam" placeholder="<?php esc_attr_e( 'Straat', 'mijn-ledenportaal' ); ?>"
+                    value="<?php echo esc_attr( $meta['straatnaam'] ); ?>" style="width:200px">
+                <input type="text" name="lp_huisnummer" placeholder="<?php esc_attr_e( 'Nr.', 'mijn-ledenportaal' ); ?>"
+                    value="<?php echo esc_attr( $meta['huisnummer'] ); ?>" style="width:60px">
+                <input type="text" name="lp_huisnummer_toevoeging" placeholder="<?php esc_attr_e( 'Toev.', 'mijn-ledenportaal' ); ?>"
+                    value="<?php echo esc_attr( $meta['huisnummer_toevoeging'] ); ?>" style="width:60px">
+                <br style="margin-bottom:6px">
+                <input type="text" name="lp_postcode" placeholder="<?php esc_attr_e( 'Postcode', 'mijn-ledenportaal' ); ?>"
+                    value="<?php echo esc_attr( $meta['postcode'] ); ?>" style="width:100px">
+                <input type="text" name="lp_plaats" placeholder="<?php esc_attr_e( 'Plaats', 'mijn-ledenportaal' ); ?>"
+                    value="<?php echo esc_attr( $meta['plaats'] ); ?>" style="width:160px">
+                <br style="margin-bottom:6px">
+                <select name="lp_land">
+                    <?php foreach ( lp_land_opties() as $code => $naam ) : ?>
+                        <option value="<?php echo esc_attr( $code ); ?>" <?php selected( $meta['land'] ?: 'NL', $code ); ?>>
+                            <?php echo esc_html( $naam ); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </td>
+        </tr>
+
+        <tr>
+            <th><label for="lp_afdeling"><?php esc_html_e( 'Afdeling', 'mijn-ledenportaal' ); ?></label></th>
+            <td>
+                <select name="lp_afdeling" id="lp_afdeling">
+                    <option value=""><?php esc_html_e( '— Geen —', 'mijn-ledenportaal' ); ?></option>
+                    <?php foreach ( lp_afdeling_opties() as $waarde => $label ) : ?>
+                        <option value="<?php echo esc_attr( $waarde ); ?>" <?php selected( $meta['afdeling'], $waarde ); ?>>
+                            <?php echo esc_html( $label ); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </td>
+        </tr>
+
+        <tr>
+            <th><label for="lp_soort_pensioen"><?php esc_html_e( 'Soort pensioen', 'mijn-ledenportaal' ); ?></label></th>
+            <td>
+                <select name="lp_soort_pensioen" id="lp_soort_pensioen">
+                    <option value=""><?php esc_html_e( '— Geen —', 'mijn-ledenportaal' ); ?></option>
+                    <?php foreach ( lp_pensioen_opties() as $waarde => $label ) : ?>
+                        <option value="<?php echo esc_attr( $waarde ); ?>" <?php selected( $meta['soort_pensioen'], $waarde ); ?>>
+                            <?php echo esc_html( $label ); ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </td>
+        </tr>
+
+        <tr>
+            <th><?php esc_html_e( 'Verenigingsfunctie', 'mijn-ledenportaal' ); ?></th>
+            <td>
+                <?php foreach ( lp_functie_opties() as $waarde => $label ) : ?>
+                    <label style="display:block; margin-bottom:4px;">
+                        <input type="checkbox" name="lp_verenigingsfunctie[]"
+                            value="<?php echo esc_attr( $waarde ); ?>"
+                            <?php checked( in_array( $waarde, (array) $meta['verenigingsfunctie'], true ) ); ?>>
+                        <?php echo esc_html( $label ); ?>
+                    </label>
+                <?php endforeach; ?>
+            </td>
+        </tr>
+
+    </table>
+    <?php
+}
+
+/**
+ * Sla lp_ velden op bij het bewaren van het gebruikersprofiel in de admin
+ */
+add_action( 'personal_options_update', 'lp_sla_profiel_velden_op' );
+add_action( 'edit_user_profile_update', 'lp_sla_profiel_velden_op' );
+
+function lp_sla_profiel_velden_op( $user_id ) {
+    if ( ! current_user_can( 'edit_user', $user_id ) ) return;
+    if ( ! isset( $_POST['lp_profiel_nonce'] ) || ! wp_verify_nonce( $_POST['lp_profiel_nonce'], 'lp_opslaan_profiel_' . $user_id ) ) return;
+
+    $oude_status = get_user_meta( $user_id, 'lp_account_status', true );
+    $nieuwe_status = sanitize_key( $_POST['lp_account_status'] ?? '' );
+
+    update_user_meta( $user_id, 'lp_account_status',        $nieuwe_status );
+    update_user_meta( $user_id, 'lp_geslacht',              sanitize_key( $_POST['lp_geslacht'] ?? '' ) );
+    update_user_meta( $user_id, 'lp_geboortedatum',         sanitize_text_field( $_POST['lp_geboortedatum'] ?? '' ) );
+    update_user_meta( $user_id, 'lp_telefoonnummer',        sanitize_text_field( $_POST['lp_telefoonnummer'] ?? '' ) );
+    update_user_meta( $user_id, 'lp_mobiel',                sanitize_text_field( $_POST['lp_mobiel'] ?? '' ) );
+    update_user_meta( $user_id, 'lp_straatnaam',            sanitize_text_field( $_POST['lp_straatnaam'] ?? '' ) );
+    update_user_meta( $user_id, 'lp_huisnummer',            sanitize_text_field( $_POST['lp_huisnummer'] ?? '' ) );
+    update_user_meta( $user_id, 'lp_huisnummer_toevoeging', sanitize_text_field( $_POST['lp_huisnummer_toevoeging'] ?? '' ) );
+    update_user_meta( $user_id, 'lp_postcode',              sanitize_text_field( $_POST['lp_postcode'] ?? '' ) );
+    update_user_meta( $user_id, 'lp_plaats',                sanitize_text_field( $_POST['lp_plaats'] ?? '' ) );
+    update_user_meta( $user_id, 'lp_land',                  sanitize_text_field( $_POST['lp_land'] ?? 'NL' ) );
+    update_user_meta( $user_id, 'lp_afdeling',              sanitize_key( $_POST['lp_afdeling'] ?? '' ) );
+    update_user_meta( $user_id, 'lp_soort_pensioen',        sanitize_key( $_POST['lp_soort_pensioen'] ?? '' ) );
+
+    delete_user_meta( $user_id, 'lp_verenigingsfunctie' );
+    $functies = array_map( 'sanitize_key', (array) ( $_POST['lp_verenigingsfunctie'] ?? [] ) );
+    $geldige  = array_keys( lp_functie_opties() );
+    foreach ( $functies as $keuze ) {
+        if ( in_array( $keuze, $geldige, true ) ) {
+            add_user_meta( $user_id, 'lp_verenigingsfunctie', $keuze );
+        }
+    }
+
+    // Trigger mail als status veranderd is
+    if ( $nieuwe_status !== $oude_status ) {
+        if ( $nieuwe_status === 'approved' ) {
+            do_action( 'lp_account_goedgekeurd', $user_id );
+        } elseif ( $nieuwe_status === 'rejected' ) {
+            do_action( 'lp_account_afgewezen', $user_id );
+        }
+    }
+}
+
+/**
  * Admin menu registratie
  */
 add_action( 'admin_menu', function() {
@@ -41,6 +248,8 @@ add_action( 'admin_init', function() {
     register_setting( 'lp_instellingen', 'lp_login_pagina_id', [ 'sanitize_callback' => 'absint' ] );
     register_setting( 'lp_instellingen', 'lp_account_pagina_id', [ 'sanitize_callback' => 'absint' ] );
     register_setting( 'lp_instellingen', 'lp_registratie_pagina_id', [ 'sanitize_callback' => 'absint' ] );
+    register_setting( 'lp_instellingen', 'lp_wachtwoord_vergeten_pagina_id', [ 'sanitize_callback' => 'absint' ] );
+    register_setting( 'lp_instellingen', 'lp_nieuw_wachtwoord_pagina_id', [ 'sanitize_callback' => 'absint' ] );
     register_setting( 'lp_instellingen', 'lp_beveiligde_paginas', [
         'sanitize_callback' => function( $waarde ) {
             if ( ! is_array( $waarde ) ) return [];
@@ -56,10 +265,12 @@ function lp_admin_instellingen_pagina() {
     if ( ! current_user_can( 'manage_options' ) ) return;
 
     $alle_paginas = get_pages( [ 'post_status' => 'publish', 'sort_column' => 'post_title' ] );
-    $login_id     = get_option( 'lp_login_pagina_id', 0 );
-    $account_id   = get_option( 'lp_account_pagina_id', 0 );
-    $registratie_id = get_option( 'lp_registratie_pagina_id', 0 );
-    $beveiligde   = get_option( 'lp_beveiligde_paginas', [] );
+    $login_id              = get_option( 'lp_login_pagina_id', 0 );
+    $account_id            = get_option( 'lp_account_pagina_id', 0 );
+    $registratie_id        = get_option( 'lp_registratie_pagina_id', 0 );
+    $wachtwoord_vergeten_id = get_option( 'lp_wachtwoord_vergeten_pagina_id', 0 );
+    $nieuw_wachtwoord_id   = get_option( 'lp_nieuw_wachtwoord_pagina_id', 0 );
+    $beveiligde            = get_option( 'lp_beveiligde_paginas', [] );
     if ( ! is_array( $beveiligde ) ) $beveiligde = [];
     ?>
     <div class="wrap">
@@ -74,6 +285,8 @@ function lp_admin_instellingen_pagina() {
                 '[ledenportaal_login]',
                 '[ledenportaal_registratie]',
                 '[ledenportaal_account]',
+                '[ledenportaal_wachtwoord_vergeten]',
+                '[ledenportaal_nieuw_wachtwoord]',
             ];
             foreach ( $shortcodes as $sc ) : ?>
                 <code
@@ -143,6 +356,46 @@ function lp_admin_instellingen_pagina() {
                         </select>
                         <?php if ( $registratie_id ) : ?>
                             <a href="<?php echo esc_url( get_permalink( $registratie_id ) ); ?>" target="_blank" class="button button-small" style="margin-left: 8px;">
+                                <?php esc_html_e( 'Bekijk', 'mijn-ledenportaal' ); ?>
+                            </a>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="lp_wachtwoord_vergeten_pagina_id"><?php esc_html_e( 'Wachtwoord vergeten pagina', 'mijn-ledenportaal' ); ?></label>
+                    </th>
+                    <td>
+                        <select name="lp_wachtwoord_vergeten_pagina_id" id="lp_wachtwoord_vergeten_pagina_id">
+                            <option value="0"><?php esc_html_e( '— Selecteer pagina —', 'mijn-ledenportaal' ); ?></option>
+                            <?php foreach ( $alle_paginas as $pagina ) : ?>
+                                <option value="<?php echo esc_attr( $pagina->ID ); ?>" <?php selected( $wachtwoord_vergeten_id, $pagina->ID ); ?>>
+                                    <?php echo esc_html( $pagina->post_title ); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if ( $wachtwoord_vergeten_id ) : ?>
+                            <a href="<?php echo esc_url( get_permalink( $wachtwoord_vergeten_id ) ); ?>" target="_blank" class="button button-small" style="margin-left: 8px;">
+                                <?php esc_html_e( 'Bekijk', 'mijn-ledenportaal' ); ?>
+                            </a>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="lp_nieuw_wachtwoord_pagina_id"><?php esc_html_e( 'Nieuw wachtwoord pagina', 'mijn-ledenportaal' ); ?></label>
+                    </th>
+                    <td>
+                        <select name="lp_nieuw_wachtwoord_pagina_id" id="lp_nieuw_wachtwoord_pagina_id">
+                            <option value="0"><?php esc_html_e( '— Selecteer pagina —', 'mijn-ledenportaal' ); ?></option>
+                            <?php foreach ( $alle_paginas as $pagina ) : ?>
+                                <option value="<?php echo esc_attr( $pagina->ID ); ?>" <?php selected( $nieuw_wachtwoord_id, $pagina->ID ); ?>>
+                                    <?php echo esc_html( $pagina->post_title ); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if ( $nieuw_wachtwoord_id ) : ?>
+                            <a href="<?php echo esc_url( get_permalink( $nieuw_wachtwoord_id ) ); ?>" target="_blank" class="button button-small" style="margin-left: 8px;">
                                 <?php esc_html_e( 'Bekijk', 'mijn-ledenportaal' ); ?>
                             </a>
                         <?php endif; ?>
