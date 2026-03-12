@@ -16,7 +16,18 @@ $checked_functie = function( $waarde ) use ( $ingevoerd ) {
 
     <?php if ( $succes ) : ?>
         <div class="lp-melding lp-melding--succes">
-            <?php esc_html_e( 'Je aanmelding is ontvangen! Je krijgt een e-mail zodra je account is goedgekeurd.', 'mijn-ledenportaal' ); ?>
+            <?php if ( $auto_goedgekeurd ) : ?>
+                <?php
+                $login_id = get_option( 'lp_login_pagina_id', 0 );
+                $login_url = $login_id ? get_permalink( $login_id ) : wp_login_url();
+                ?>
+                <?php esc_html_e( 'Je account is aangemaakt en direct goedgekeurd.', 'mijn-ledenportaal' ); ?>
+                <a href="<?php echo esc_url( $login_url ); ?>" style="color: inherit; text-decoration: underline;">
+                    <?php esc_html_e( 'Je kunt nu inloggen.', 'mijn-ledenportaal' ); ?>
+                </a>
+            <?php else : ?>
+                <?php esc_html_e( 'Je aanmelding is ontvangen! Je krijgt een e-mail zodra je account is goedgekeurd.', 'mijn-ledenportaal' ); ?>
+            <?php endif; ?>
         </div>
 
     <?php else : ?>

@@ -233,6 +233,15 @@ add_action( 'admin_menu', function() {
 
     add_submenu_page(
         'ledenportaal',
+        __( 'Mails', 'mijn-ledenportaal' ),
+        __( 'Mails', 'mijn-ledenportaal' ),
+        'manage_options',
+        'lp-mails',
+        'lp_admin_mails_pagina'
+    );
+
+    add_submenu_page(
+        'ledenportaal',
         __( 'Ledenbeheer', 'mijn-ledenportaal' ),
         __( 'Ledenbeheer', 'mijn-ledenportaal' ),
         'manage_options',
@@ -250,6 +259,26 @@ add_action( 'admin_init', function() {
     register_setting( 'lp_instellingen', 'lp_registratie_pagina_id', [ 'sanitize_callback' => 'absint' ] );
     register_setting( 'lp_instellingen', 'lp_wachtwoord_vergeten_pagina_id', [ 'sanitize_callback' => 'absint' ] );
     register_setting( 'lp_instellingen', 'lp_nieuw_wachtwoord_pagina_id', [ 'sanitize_callback' => 'absint' ] );
+    // Mail toggles
+    $mail_sleutels = [
+        'registratie_bevestiging',
+        'admin_nieuw_lid',
+        'account_goedgekeurd',
+        'account_afgewezen',
+        'account_bijgewerkt',
+        'wachtwoord_reset',
+    ];
+    foreach ( $mail_sleutels as $sleutel ) {
+        register_setting( 'lp_mails', 'lp_mail_actief_' . $sleutel, [
+            'sanitize_callback' => function( $v ) { return $v ? '1' : '0'; },
+        ] );
+    }
+    register_setting( 'lp_mails', 'lp_notificatie_email', [ 'sanitize_callback' => 'sanitize_email' ] );
+    register_setting( 'lp_instellingen', 'lp_goedkeuring_flow', [
+        'sanitize_callback' => function( $v ) {
+            return in_array( $v, [ 'manual', 'automatic' ], true ) ? $v : 'manual';
+        },
+    ] );
     register_setting( 'lp_instellingen', 'lp_beveiligde_paginas', [
         'sanitize_callback' => function( $waarde ) {
             if ( ! is_array( $waarde ) ) return [];
@@ -272,6 +301,7 @@ function lp_admin_instellingen_pagina() {
     $nieuw_wachtwoord_id   = get_option( 'lp_nieuw_wachtwoord_pagina_id', 0 );
     $beveiligde            = get_option( 'lp_beveiligde_paginas', [] );
     if ( ! is_array( $beveiligde ) ) $beveiligde = [];
+    $goedkeuring_flow      = get_option( 'lp_goedkeuring_flow', 'manual' );
     ?>
     <div class="wrap">
         <h1><?php esc_html_e( 'Ledenportaal — Instellingen', 'mijn-ledenportaal' ); ?></h1>
@@ -403,6 +433,25 @@ function lp_admin_instellingen_pagina() {
                 </tr>
                 <tr>
                     <th scope="row">
+                        <?php esc_html_e( 'Goedkeuringsflow', 'mijn-ledenportaal' ); ?>
+                    </th>
+                    <td>
+                        <fieldset>
+                            <label style="display: block; margin-bottom: 6px;">
+                                <input type="radio" name="lp_goedkeuring_flow" value="manual"
+                                    <?php checked( $goedkeuring_flow, 'manual' ); ?>>
+                                <?php esc_html_e( 'Handmatig — nieuwe leden moeten door een beheerder worden goedgekeurd', 'mijn-ledenportaal' ); ?>
+                            </label>
+                            <label style="display: block;">
+                                <input type="radio" name="lp_goedkeuring_flow" value="automatic"
+                                    <?php checked( $goedkeuring_flow, 'automatic' ); ?>>
+                                <?php esc_html_e( 'Automatisch — nieuwe leden worden direct goedgekeurd na registratie', 'mijn-ledenportaal' ); ?>
+                            </label>
+                        </fieldset>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
                         <?php esc_html_e( 'Beveiligde pagina\'s', 'mijn-ledenportaal' ); ?>
                     </th>
                     <td>
@@ -425,6 +474,137 @@ function lp_admin_instellingen_pagina() {
             <?php submit_button( __( 'Instellingen opslaan', 'mijn-ledenportaal' ) ); ?>
         </form>
     </div>
+    <?php
+}
+
+/**
+ * Admin pagina: Mails
+ */
+function lp_admin_mails_pagina() {
+    if ( ! current_user_can( 'manage_options' ) ) return;
+
+    $mails = [
+        'registratie_bevestiging' => [
+            'label'       => __( 'Registratie bevestiging (aan lid)', 'mijn-ledenportaal' ),
+            'beschrijving' => __( 'Bevestigingsmail aan het lid nadat hij/zij zich heeft aangemeld. Informeert dat de aanmelding in behandeling is.', 'mijn-ledenportaal' ),
+            'ontvanger'   => __( 'Lid', 'mijn-ledenportaal' ),
+        ],
+        'admin_nieuw_lid' => [
+            'label'       => __( 'Nieuw lid aangemeld (aan admin)', 'mijn-ledenportaal' ),
+            'beschrijving' => __( 'Notificatie aan de beheerder zodra een nieuw lid zich heeft aangemeld.', 'mijn-ledenportaal' ),
+            'ontvanger'   => __( 'Admin (WordPress e-mail)', 'mijn-ledenportaal' ),
+        ],
+        'account_goedgekeurd' => [
+            'label'       => __( 'Account goedgekeurd (aan lid)', 'mijn-ledenportaal' ),
+            'beschrijving' => __( 'Mail aan het lid wanneer het account is goedgekeurd door een beheerder.', 'mijn-ledenportaal' ),
+            'ontvanger'   => __( 'Lid', 'mijn-ledenportaal' ),
+        ],
+        'account_afgewezen' => [
+            'label'       => __( 'Account afgewezen (aan lid)', 'mijn-ledenportaal' ),
+            'beschrijving' => __( 'Mail aan het lid wanneer het account is afgewezen door een beheerder.', 'mijn-ledenportaal' ),
+            'ontvanger'   => __( 'Lid', 'mijn-ledenportaal' ),
+        ],
+        'account_bijgewerkt' => [
+            'label'       => __( 'Accountgegevens bijgewerkt (notificatie)', 'mijn-ledenportaal' ),
+            'beschrijving' => __( 'Notificatie naar het ingestelde notificatie-e-mailadres wanneer een lid zijn/haar gegevens bijwerkt.', 'mijn-ledenportaal' ),
+            'ontvanger'   => __( 'Notificatie-e-mailadres (zie Instellingen)', 'mijn-ledenportaal' ),
+        ],
+        'wachtwoord_reset' => [
+            'label'       => __( 'Wachtwoord reset-link (aan lid)', 'mijn-ledenportaal' ),
+            'beschrijving' => __( 'Mail met reset-link aan het lid na het aanvragen van een nieuw wachtwoord.', 'mijn-ledenportaal' ),
+            'ontvanger'   => __( 'Lid', 'mijn-ledenportaal' ),
+        ],
+    ];
+    ?>
+    <div class="wrap">
+        <h1><?php esc_html_e( 'Ledenportaal — Mails', 'mijn-ledenportaal' ); ?></h1>
+
+        <?php settings_errors( 'lp_mails' ); ?>
+
+        <p><?php esc_html_e( 'Hier activeer of deactiveer je de verschillende e-mails die het ledenportaal verstuurt.', 'mijn-ledenportaal' ); ?></p>
+
+        <form method="post" action="options.php">
+            <?php settings_fields( 'lp_mails' ); ?>
+
+            <table class="wp-list-table widefat fixed striped" style="margin-top: 16px;">
+                <thead>
+                    <tr>
+                        <th style="width: 48px;"><?php esc_html_e( 'Aan', 'mijn-ledenportaal' ); ?></th>
+                        <th><?php esc_html_e( 'Mail', 'mijn-ledenportaal' ); ?></th>
+                        <th><?php esc_html_e( 'Ontvanger', 'mijn-ledenportaal' ); ?></th>
+                        <th><?php esc_html_e( 'Omschrijving', 'mijn-ledenportaal' ); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ( $mails as $sleutel => $info ) :
+                        $actief = get_option( 'lp_mail_actief_' . $sleutel, '1' );
+                    ?>
+                        <tr>
+                            <td style="text-align: center;">
+                                <label class="lp-toggle" style="display: inline-block; position: relative; width: 40px; height: 22px;">
+                                    <input type="hidden" name="lp_mail_actief_<?php echo esc_attr( $sleutel ); ?>" value="0">
+                                    <input type="checkbox"
+                                        name="lp_mail_actief_<?php echo esc_attr( $sleutel ); ?>"
+                                        value="1"
+                                        <?php checked( $actief, '1' ); ?>
+                                        style="opacity: 0; width: 0; height: 0; position: absolute;">
+                                    <span class="lp-toggle-slider" style="
+                                        position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0;
+                                        background: <?php echo $actief === '1' ? '#0091D5' : '#ccc'; ?>;
+                                        border-radius: 22px; transition: background 0.2s;
+                                    ">
+                                        <span style="
+                                            position: absolute; content: ''; height: 16px; width: 16px;
+                                            left: <?php echo $actief === '1' ? '21px' : '3px'; ?>; bottom: 3px;
+                                            background: white; border-radius: 50%; transition: left 0.2s;
+                                        "></span>
+                                    </span>
+                                </label>
+                            </td>
+                            <td><strong><?php echo esc_html( $info['label'] ); ?></strong></td>
+                            <td style="color: #666;"><?php echo esc_html( $info['ontvanger'] ); ?></td>
+                            <td style="color: #666;"><?php echo esc_html( $info['beschrijving'] ); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+
+            <h2 style="margin-top: 28px;"><?php esc_html_e( 'Notificatie-instellingen', 'mijn-ledenportaal' ); ?></h2>
+            <table class="form-table" style="margin-top: 0;">
+                <tr>
+                    <th scope="row">
+                        <label for="lp_notificatie_email"><?php esc_html_e( 'Notificatie-e-mailadres', 'mijn-ledenportaal' ); ?></label>
+                    </th>
+                    <td>
+                        <input type="email" name="lp_notificatie_email" id="lp_notificatie_email"
+                            value="<?php echo esc_attr( get_option( 'lp_notificatie_email', '' ) ); ?>"
+                            class="regular-text"
+                            placeholder="<?php esc_attr_e( 'bijv. secretaris@voorbeeld.nl', 'mijn-ledenportaal' ); ?>">
+                        <p class="description"><?php esc_html_e( 'Ontvanger van de notificatie bij accountwijzigingen (zie mail "Accountgegevens bijgewerkt" hierboven).', 'mijn-ledenportaal' ); ?></p>
+                    </td>
+                </tr>
+            </table>
+
+            <p style="margin-top: 16px;">
+                <?php submit_button( __( 'Opslaan', 'mijn-ledenportaal' ), 'primary', 'submit', false ); ?>
+            </p>
+        </form>
+    </div>
+    <script>
+    document.querySelectorAll('.lp-toggle input[type="checkbox"]').forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            var slider = this.closest('.lp-toggle').querySelector('.lp-toggle-slider');
+            var knob   = slider.querySelector('span');
+            if (this.checked) {
+                slider.style.background = '#0091D5';
+                knob.style.left = '21px';
+            } else {
+                slider.style.background = '#ccc';
+                knob.style.left = '3px';
+            }
+        });
+    });
+    </script>
     <?php
 }
 

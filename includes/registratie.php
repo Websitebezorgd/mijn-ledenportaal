@@ -167,7 +167,9 @@ function lp_verwerk_registratie() {
     update_user_meta( $user_id, 'lp_land',                  $data['land'] );
     update_user_meta( $user_id, 'lp_afdeling',              $data['afdeling'] );
     update_user_meta( $user_id, 'lp_soort_pensioen',        $data['soort_pensioen'] );
-    update_user_meta( $user_id, 'lp_account_status',        'pending' );
+    $flow = get_option( 'lp_goedkeuring_flow', 'manual' );
+    $status = ( $flow === 'automatic' ) ? 'approved' : 'pending';
+    update_user_meta( $user_id, 'lp_account_status', $status );
 
     $geldige_functies = array_keys( lp_functie_opties() );
     foreach ( $data['verenigingsfunctie'] as $keuze ) {
@@ -178,7 +180,12 @@ function lp_verwerk_registratie() {
 
     do_action( 'lp_na_registratie', $user_id );
 
-    wp_safe_redirect( add_query_arg( 'lp_succes', 'registratie', lp_huidige_url() ) );
+    if ( $flow === 'automatic' ) {
+        do_action( 'lp_account_goedgekeurd', $user_id );
+    }
+
+    $succes_param = ( $flow === 'automatic' ) ? 'registratie_goedgekeurd' : 'registratie';
+    wp_safe_redirect( add_query_arg( 'lp_succes', $succes_param, lp_huidige_url() ) );
     exit;
 }
 
@@ -189,7 +196,9 @@ add_shortcode( 'ledenportaal_registratie', 'lp_render_registratie' );
 
 function lp_render_registratie() {
     $fouten = lp_haal_fouten_op( 'registratie' );
-    $succes = isset( $_GET['lp_succes'] ) && $_GET['lp_succes'] === 'registratie';
+    $succes_waarde = isset( $_GET['lp_succes'] ) ? sanitize_key( $_GET['lp_succes'] ) : '';
+    $succes = in_array( $succes_waarde, [ 'registratie', 'registratie_goedgekeurd' ], true );
+    $auto_goedgekeurd = ( $succes_waarde === 'registratie_goedgekeurd' );
 
     // Herstel formulierdata bij fout
     $token   = sanitize_key( $_GET['lp_fout_registratie'] ?? '' );

@@ -29,7 +29,7 @@ function lp_verwerk_wachtwoord_vergeten() {
     if ( $gebruiker ) {
         $reset_key = get_password_reset_key( $gebruiker );
 
-        if ( ! is_wp_error( $reset_key ) ) {
+        if ( ! is_wp_error( $reset_key ) && get_option( 'lp_mail_actief_wachtwoord_reset', '1' ) === '1' ) {
             $nieuw_wachtwoord_id = get_option( 'lp_nieuw_wachtwoord_pagina_id', 0 );
             $reset_url = $nieuw_wachtwoord_id
                 ? add_query_arg(

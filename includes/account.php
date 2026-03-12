@@ -96,6 +96,8 @@ function lp_verwerk_account() {
         }
     }
 
+    do_action( 'lp_account_bijgewerkt', $user_id );
+
     wp_safe_redirect( add_query_arg( 'lp_succes', 'account', lp_huidige_url() ) );
     exit;
 }

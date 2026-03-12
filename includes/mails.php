@@ -96,6 +96,30 @@ HTML;
 </html>
 HTML;
 
+        case 'account_bijgewerkt':
+            $admin_url = get_edit_user_link( $gebruiker ? $gebruiker->ID : 0 );
+            return <<<HTML
+<!DOCTYPE html>
+<html lang="nl">
+<head><meta charset="UTF-8"></head>
+<body style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <h2 style="color: #0091D5;">{$site_naam} — Account bijgewerkt</h2>
+    <p>Een lid heeft zijn of haar accountgegevens bijgewerkt:</p>
+    <ul>
+        <li><strong>Naam:</strong> {$volledige_naam}</li>
+        <li><strong>E-mail:</strong> {$email}</li>
+    </ul>
+    <p>
+        <a href="{$admin_url}" style="background: #0091D5; color: white; padding: 10px 20px; text-decoration: none; border-radius: 4px; display: inline-block;">
+            Bekijk profiel
+        </a>
+    </p>
+    <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 30px 0;">
+    <p style="font-size: 12px; color: #999;"><a href="{$site_url}">{$site_naam}</a></p>
+</body>
+</html>
+HTML;
+
         default:
             return '';
     }
@@ -108,27 +132,31 @@ add_action( 'lp_na_registratie', function( $user_id ) {
     $user    = get_userdata( $user_id );
     $headers = [ 'Content-Type: text/html; charset=UTF-8' ];
 
-    // Mail naar gebruiker
-    wp_mail(
-        $user->user_email,
-        sprintf( __( 'Je aanmelding bij %s is ontvangen', 'mijn-ledenportaal' ), get_bloginfo( 'name' ) ),
-        lp_mail_template( 'registratie_bevestiging', [ 'gebruiker' => $user ] ),
-        $headers
-    );
+    if ( get_option( 'lp_mail_actief_registratie_bevestiging', '1' ) === '1' ) {
+        wp_mail(
+            $user->user_email,
+            sprintf( __( 'Je aanmelding bij %s is ontvangen', 'mijn-ledenportaal' ), get_bloginfo( 'name' ) ),
+            lp_mail_template( 'registratie_bevestiging', [ 'gebruiker' => $user ] ),
+            $headers
+        );
+    }
 
-    // Mail naar admin
-    wp_mail(
-        get_option( 'admin_email' ),
-        sprintf( __( 'Nieuw lid aangemeld: %s', 'mijn-ledenportaal' ), $user->display_name ),
-        lp_mail_template( 'admin_nieuw_lid', [ 'gebruiker' => $user ] ),
-        $headers
-    );
+    if ( get_option( 'lp_mail_actief_admin_nieuw_lid', '1' ) === '1' ) {
+        wp_mail(
+            get_option( 'admin_email' ),
+            sprintf( __( 'Nieuw lid aangemeld: %s', 'mijn-ledenportaal' ), $user->display_name ),
+            lp_mail_template( 'admin_nieuw_lid', [ 'gebruiker' => $user ] ),
+            $headers
+        );
+    }
 } );
 
 /**
  * Na goedkeuring: mail naar gebruiker
  */
 add_action( 'lp_account_goedgekeurd', function( $user_id ) {
+    if ( get_option( 'lp_mail_actief_account_goedgekeurd', '1' ) !== '1' ) return;
+
     $user    = get_userdata( $user_id );
     $headers = [ 'Content-Type: text/html; charset=UTF-8' ];
 
@@ -141,9 +169,31 @@ add_action( 'lp_account_goedgekeurd', function( $user_id ) {
 } );
 
 /**
+ * Na account-update: notificatie naar ingesteld e-mailadres
+ */
+add_action( 'lp_account_bijgewerkt', function( $user_id ) {
+    if ( get_option( 'lp_mail_actief_account_bijgewerkt', '1' ) !== '1' ) return;
+
+    $notificatie_email = get_option( 'lp_notificatie_email', '' );
+    if ( empty( $notificatie_email ) || ! is_email( $notificatie_email ) ) return;
+
+    $user    = get_userdata( $user_id );
+    $headers = [ 'Content-Type: text/html; charset=UTF-8' ];
+
+    wp_mail(
+        $notificatie_email,
+        sprintf( __( 'Account bijgewerkt: %s', 'mijn-ledenportaal' ), $user->display_name ),
+        lp_mail_template( 'account_bijgewerkt', [ 'gebruiker' => $user ] ),
+        $headers
+    );
+} );
+
+/**
  * Na afwijzing: mail naar gebruiker
  */
 add_action( 'lp_account_afgewezen', function( $user_id ) {
+    if ( get_option( 'lp_mail_actief_account_afgewezen', '1' ) !== '1' ) return;
+
     $user    = get_userdata( $user_id );
     $headers = [ 'Content-Type: text/html; charset=UTF-8' ];
 
