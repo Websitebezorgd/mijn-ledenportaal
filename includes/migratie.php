@@ -52,6 +52,96 @@ function lp_migratie_standaard_mapping() {
 }
 
 /**
+ * Normaliseer een geboortedatum naar d-m-Y
+ */
+function lp_migratie_normaliseer_datum( $waarde ) {
+    $waarde = trim( (string) $waarde );
+    if ( $waarde === '' ) return '';
+
+    // Y/m/d of Y-m-d (eerste deel is 4-cijferig jaar)
+    if ( preg_match( '/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/', $waarde, $m ) ) {
+        $dt = DateTime::createFromFormat( 'Y/n/j', "{$m[1]}/{$m[2]}/{$m[3]}" );
+        return $dt ? $dt->format( 'd-m-Y' ) : $waarde;
+    }
+
+    // n/j/Y of j/n/Y (derde deel is 4-cijferig jaar)
+    if ( preg_match( '/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/', $waarde, $m ) ) {
+        $a = (int) $m[1]; $b = (int) $m[2]; $y = $m[3];
+        if ( $b > 12 ) {
+            // Eerste deel = maand, tweede = dag (Amerikaans: M/D/Y)
+            $dt = DateTime::createFromFormat( 'Y/n/j', "$y/$a/$b" );
+        } else {
+            // Europees: D/M/Y
+            $dt = DateTime::createFromFormat( 'Y/n/j', "$y/$b/$a" );
+        }
+        return $dt ? $dt->format( 'd-m-Y' ) : $waarde;
+    }
+
+    // d-m-Y al correct
+    if ( preg_match( '/^\d{1,2}-\d{1,2}-\d{4}$/', $waarde ) ) return $waarde;
+
+    // Fallback
+    $ts = strtotime( $waarde );
+    return $ts ? date( 'd-m-Y', $ts ) : $waarde;
+}
+
+/**
+ * Probeer geslacht af te leiden van een voornaam
+ * Geeft 'm', 'v' of '' terug
+ */
+function lp_migratie_geslacht_van_naam( $voornaam ) {
+    $voornaam = trim( (string) $voornaam );
+    // Initialen of te kort
+    if ( $voornaam === '' || strlen( $voornaam ) <= 2 || substr( $voornaam, -1 ) === '.' ) return '';
+
+    $v = strtolower( $voornaam );
+
+    $mannelijk = [
+        'aaron','ad','adam','adrie','adriaan','albert','alex','alexander','alexis',
+        'alfred','an','andre','andré','andries','anton','arie','arjen','arno','arjan',
+        'arnoud','arthur','bas','benjamin','ben','bert','bob','bram','chris','christian',
+        'christiaan','cor','coen','daan','dave','david','dick','dirk','dries',
+        'edgar','eddy','edwin','emiel','eric','erik','ernst','ferry','floris',
+        'frank','fred','freek','gert','geert','gerrit','gerard','gijs','guus',
+        'hans','harm','harmen','harrie','hein','henk','hennie','herman','huub',
+        'ivo','jaap','jan','jasper','jelle','jeroen','joep','john','joop','joost',
+        'jos','joris','jurgen','karel','kees','ko','koen','lars','laurens','leo',
+        'leon','luc','luuk','maarten','marc','mark','martin','mathijs','matthijs',
+        'max','menno','michiel','michael','mick','mike','niel','niels','nico',
+        'niek','olaf','pascal','patrick','paul','peter','pieter','piet','pim',
+        'raymond','remco','richard','rob','robert','robin','roel','rogier','ron',
+        'ronald','ruud','sander','sas','sebastiaan','simon','sjors','stef','stijn',
+        'sven','thijs','theo','thomas','tim','tobias','tom','toon','ton','victor',
+        'vincent','walter','wim','wouter','yannick',
+    ];
+
+    $vrouwelijk = [
+        'ageeth','agaat','alie','alied','anke','ankie','anna','anne','anneke',
+        'annemarie','annelies','annelore','annet','annette','annie','anouk','ans',
+        'bep','bertha','bettie','carla','caroline','christa','christel','christine',
+        'coby','corrie','diny','dora','dorothea','edith','elien','elise','elsbeth',
+        'elly','els','else','elsa','emma','emmy','esther','eva','femke','fenna',
+        'fleur','gerda','greet','gretha','hanneke','hannie','helen','helena','henny',
+        'hilde','hilda','ina','ineke','ingrid','irma','jacqueline','janet','jannie',
+        'janny','jenny','jill','joke','jolien','jose','judith','julia','juliette',
+        'karen','karin','katja','laura','lena','lies','liesbeth','lieke','lilian',
+        'linda','lisette','loes','lotte','louise','lydia','magda','marga','margreet',
+        'margot','margriet','maria','marjan','marjolein','marjorie','marlies','marie',
+        'mariëlle','marieke','mariëtte','marina','marita','mathilde','maud','merel',
+        'meta','mia','mieke','mies','miep','mirjam','monique','nathalie','nanny',
+        'nellie','nelleke','nienke','nicky','nina','noor','nora','petra','pie',
+        'ria','riet','rietje','rianne','rinie','roos','rosa','ruth','saar','sabine',
+        'sandra','sanne','sara','sarah','silvia','sonja','sophie','suus','suzanne',
+        'tanja','tess','tilly','tineke','tine','toos','trijntje','trudie','truus',
+        'vera','wies','willy','wilma','yvonne',
+    ];
+
+    if ( in_array( $v, $mannelijk, true ) ) return 'm';
+    if ( in_array( $v, $vrouwelijk, true ) ) return 'v';
+    return '';
+}
+
+/**
  * Status-waarden omzetten van UM naar LP
  */
 function lp_migratie_status( $um_status ) {
@@ -360,6 +450,9 @@ function lp_migratie_vertaal_waarde( $lp_sleutel, $waarde ) {
             $omgekeerd = array_flip( lp_geslacht_opties() );
             return $omgekeerd[ $waarden[0] ?? '' ] ?? strtolower( $waarden[0] ?? '' );
 
+        case 'lp_geboortedatum':
+            return lp_migratie_normaliseer_datum( $waarden[0] ?? '' );
+
         case 'lp_afdeling':
             $omgekeerd = array_flip( lp_afdeling_opties() );
             return $omgekeerd[ $waarden[0] ?? '' ] ?? '';
@@ -409,8 +502,16 @@ function lp_migratie_export_csv( array $mapping ) {
 
         foreach ( $mapping as $lp_sleutel => $um_sleutel ) {
             // get_user_meta deserialiseert automatisch geserialiseerde arrays
-            $raw    = get_user_meta( $gebruiker->ID, $um_sleutel, true );
-            $rij[]  = lp_migratie_vertaal_waarde( $lp_sleutel, $raw );
+            $raw = get_user_meta( $gebruiker->ID, $um_sleutel, true );
+            $val = lp_migratie_vertaal_waarde( $lp_sleutel, $raw );
+
+            // Geslacht leeg? Probeer af te leiden van voornaam
+            if ( $lp_sleutel === 'lp_geslacht' && $val === '' ) {
+                $voornaam = get_user_meta( $gebruiker->ID, 'first_name', true );
+                $val = lp_migratie_geslacht_van_naam( $voornaam );
+            }
+
+            $rij[] = $val;
         }
 
         fputcsv( $out, $rij );
