@@ -107,3 +107,7 @@ add_action( 'init', function() {
 function lp_uitlog_url() {
     return add_query_arg( 'lp_uitloggen', wp_create_nonce( 'lp_uitloggen' ), home_url() );
 }
+
+add_shortcode( 'ledenportaal_uitlog_url', function() {
+    return esc_url( lp_uitlog_url() );
+} );
