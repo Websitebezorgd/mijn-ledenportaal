@@ -336,6 +336,13 @@ add_action( 'admin_init', function() {
             return in_array( $v, $rollen, true ) ? $v : 'subscriber';
         },
     ] );
+    register_setting( 'lp_instellingen', 'lp_adminbar_uitschakelen', [
+        'sanitize_callback' => function( $v ) {
+            if ( ! is_array( $v ) ) return [];
+            $rollen = array_keys( get_editable_roles() );
+            return array_values( array_intersect( $v, $rollen ) );
+        },
+    ] );
     register_setting( 'lp_instellingen', 'lp_beveilig_alles', [
         'sanitize_callback' => function( $v ) { return $v ? '1' : ''; },
     ] );
@@ -382,6 +389,7 @@ function lp_admin_instellingen_pagina() {
     $alle_taxonomieen      = get_taxonomies( [ 'public' => true ], 'objects' );
     $goedkeuring_flow      = get_option( 'lp_goedkeuring_flow', 'manual' );
     $registratie_rol       = get_option( 'lp_registratie_rol', 'subscriber' );
+    $adminbar_uitschakelen = (array) get_option( 'lp_adminbar_uitschakelen', [] );
     ?>
     <div class="wrap">
         <h1><?php esc_html_e( 'Ledenportaal — Instellingen', 'mijn-ledenportaal' ); ?></h1>
@@ -543,6 +551,24 @@ function lp_admin_instellingen_pagina() {
                             <?php endforeach; ?>
                         </select>
                         <p class="description"><?php esc_html_e( 'De WordPress-rol die nieuwe leden krijgen na registratie.', 'mijn-ledenportaal' ); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <?php esc_html_e( 'Admin balk verbergen', 'mijn-ledenportaal' ); ?>
+                    </th>
+                    <td>
+                        <fieldset>
+                            <?php foreach ( get_editable_roles() as $rol_slug => $rol_info ) : ?>
+                                <label style="display: block; margin-bottom: 4px;">
+                                    <input type="checkbox" name="lp_adminbar_uitschakelen[]"
+                                        value="<?php echo esc_attr( $rol_slug ); ?>"
+                                        <?php checked( in_array( $rol_slug, $adminbar_uitschakelen, true ) ); ?>>
+                                    <?php echo esc_html( translate_user_role( $rol_info['name'] ) ); ?>
+                                </label>
+                            <?php endforeach; ?>
+                        </fieldset>
+                        <p class="description"><?php esc_html_e( 'De WordPress-adminbalk wordt verborgen voor de geselecteerde rollen op de frontend.', 'mijn-ledenportaal' ); ?></p>
                     </td>
                 </tr>
                 <tr>

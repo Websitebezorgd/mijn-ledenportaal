@@ -51,6 +51,18 @@ require_once LP_PATH . 'includes/mails.php';
 require_once LP_PATH . 'includes/admin.php';
 require_once LP_PATH . 'includes/migratie.php';
 
+// Admin bar uitschakelen per rol
+add_filter( 'show_admin_bar', function( $toon ) {
+    if ( ! is_user_logged_in() ) return $toon;
+    $uitgeschakeld_voor = (array) get_option( 'lp_adminbar_uitschakelen', [] );
+    if ( empty( $uitgeschakeld_voor ) ) return $toon;
+    $gebruiker = wp_get_current_user();
+    foreach ( $gebruiker->roles as $rol ) {
+        if ( in_array( $rol, $uitgeschakeld_voor, true ) ) return false;
+    }
+    return $toon;
+} );
+
 // Assets laden
 add_action( 'wp_enqueue_scripts', function() {
     wp_enqueue_style( 'ledenportaal-css', LP_URL . 'assets/css/ledenportaal.css', [], LP_VERSION );
