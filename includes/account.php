@@ -55,11 +55,14 @@ function lp_verwerk_account() {
         if ( $nieuw_wachtwoord !== $nieuw_wachtwoord2 ) $fouten[] = __( 'Nieuwe wachtwoorden komen niet overeen.', 'mijn-ledenportaal' );
     }
 
+    $huidig_iban_check = strtoupper( preg_replace( '/\s+/', '', (string) get_user_meta( $user_id, 'lp_iban', true ) ) );
+    $iban_gewijzigd    = $iban !== $huidig_iban_check;
+
     if ( ! empty( $iban ) ) {
-        if ( ! lp_valideer_iban( $iban ) )          $fouten[] = __( 'Voer een geldig IBAN-nummer in.', 'mijn-ledenportaal' );
-        if ( $iban !== $iban2 )                     $fouten[] = __( 'IBAN-nummers komen niet overeen.', 'mijn-ledenportaal' );
-        if ( empty( $iban_ten_name_van ) )           $fouten[] = __( 'Naam rekeninghouder is verplicht bij opgave van een IBAN.', 'mijn-ledenportaal' );
-        if ( empty( $incasso_toestemming ) )         $fouten[] = __( 'Je moet toestemming geven voor automatisch incasso.', 'mijn-ledenportaal' );
+        if ( ! lp_valideer_iban( $iban ) )           $fouten[] = __( 'Voer een geldig IBAN-nummer in.', 'mijn-ledenportaal' );
+        if ( $iban_gewijzigd && $iban !== $iban2 )   $fouten[] = __( 'IBAN-nummers komen niet overeen.', 'mijn-ledenportaal' );
+        if ( empty( $iban_ten_name_van ) )            $fouten[] = __( 'Naam rekeninghouder is verplicht bij opgave van een IBAN.', 'mijn-ledenportaal' );
+        if ( empty( $incasso_toestemming ) )          $fouten[] = __( 'Je moet toestemming geven voor automatisch incasso.', 'mijn-ledenportaal' );
     }
 
     if ( ! in_array( $geslacht, array_keys( lp_geslacht_opties() ), true ) )       $geslacht = '';
