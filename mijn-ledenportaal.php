@@ -49,6 +49,7 @@ require_once LP_PATH . 'includes/account.php';
 require_once LP_PATH . 'includes/afscherming.php';
 require_once LP_PATH . 'includes/mails.php';
 require_once LP_PATH . 'includes/admin.php';
+require_once LP_PATH . 'includes/migratie.php';
 
 // Assets laden
 add_action( 'wp_enqueue_scripts', function() {

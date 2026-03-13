@@ -1,0 +1,30 @@
+name: Deploy to live
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy via FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_NEW_SERVER }}
+          username: ${{ secrets.FTP_NEW_USERNAME }}
+          password: ${{ secrets.FTP_NEW_PASSWORD }}
+          port: 21
+          local-dir: ./
+          server-dir: /vo-dlg.nl/public_html/wp-content/plugins/mijn-ledenportaal/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.DS_Store
+            **/.env
+            **/.github/**
