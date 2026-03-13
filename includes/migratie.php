@@ -114,6 +114,25 @@ function lp_migratie_detecteer_sleutels() {
 }
 
 /**
+ * CSV-export vroeg afhandelen (vóór HTML-output)
+ */
+add_action( 'admin_init', function() {
+    if (
+        ! is_admin() ||
+        ( $_GET['page'] ?? '' ) !== 'lp-migratie' ||
+        ( $_GET['stap'] ?? '' ) !== '2' ||
+        ! isset( $_POST['lp_migratie_export_submit'] )
+    ) return;
+
+    if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Geen toegang.' );
+    check_admin_referer( 'lp_migratie_export' );
+
+    $mapping = get_option( 'lp_migratie_mapping', lp_migratie_standaard_mapping() );
+    lp_migratie_export_csv( $mapping );
+    exit;
+} );
+
+/**
  * Admin submenu registratie
  */
 add_action( 'admin_menu', function() {
@@ -155,13 +174,6 @@ function lp_admin_migratie_pagina() {
         update_option( 'lp_migratie_mapping', $nieuw );
         $mapping = $nieuw;
         $melding = __( 'Koppeling opgeslagen.', 'mijn-ledenportaal' );
-    }
-
-    // --- Stap 2: CSV exporteren ---
-    if ( $stap === '2' && isset( $_POST['lp_migratie_export_submit'] ) ) {
-        check_admin_referer( 'lp_migratie_export' );
-        lp_migratie_export_csv( $mapping );
-        exit;
     }
 
     // --- Stap 3: CSV importeren ---
@@ -439,6 +451,7 @@ function lp_migratie_import_csv() {
     $overgeslagen = 0;
 
     while ( ( $rij = fgetcsv( $fh ) ) !== false ) {
+        if ( count( $rij ) !== count( $koppen ) ) continue;
         $data = array_combine( $koppen, $rij );
         if ( ! $data ) continue;
 
