@@ -52,16 +52,19 @@ function lp_migratie_standaard_mapping() {
 }
 
 /**
- * Normaliseer een geboortedatum naar d-m-Y
+ * Normaliseer een geboortedatum naar Y-m-d (HTML date input formaat)
  */
 function lp_migratie_normaliseer_datum( $waarde ) {
     $waarde = trim( (string) $waarde );
     if ( $waarde === '' ) return '';
 
+    // Y-m-d al correct
+    if ( preg_match( '/^\d{4}-\d{2}-\d{2}$/', $waarde ) ) return $waarde;
+
     // Y/m/d of Y-m-d (eerste deel is 4-cijferig jaar)
     if ( preg_match( '/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/', $waarde, $m ) ) {
         $dt = DateTime::createFromFormat( 'Y/n/j', "{$m[1]}/{$m[2]}/{$m[3]}" );
-        return $dt ? $dt->format( 'd-m-Y' ) : $waarde;
+        return $dt ? $dt->format( 'Y-m-d' ) : $waarde;
     }
 
     // n/j/Y of j/n/Y (derde deel is 4-cijferig jaar)
@@ -74,15 +77,12 @@ function lp_migratie_normaliseer_datum( $waarde ) {
             // Europees: D/M/Y
             $dt = DateTime::createFromFormat( 'Y/n/j', "$y/$b/$a" );
         }
-        return $dt ? $dt->format( 'd-m-Y' ) : $waarde;
+        return $dt ? $dt->format( 'Y-m-d' ) : $waarde;
     }
-
-    // d-m-Y al correct
-    if ( preg_match( '/^\d{1,2}-\d{1,2}-\d{4}$/', $waarde ) ) return $waarde;
 
     // Fallback
     $ts = strtotime( $waarde );
-    return $ts ? date( 'd-m-Y', $ts ) : $waarde;
+    return $ts ? date( 'Y-m-d', $ts ) : $waarde;
 }
 
 /**

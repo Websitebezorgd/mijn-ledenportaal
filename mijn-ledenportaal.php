@@ -64,5 +64,6 @@ register_activation_hook( __FILE__, function() {
     add_option( 'lp_registratie_pagina_id', 0 );
     add_option( 'lp_wachtwoord_vergeten_pagina_id', 0 );
     add_option( 'lp_nieuw_wachtwoord_pagina_id', 0 );
+    add_option( 'lp_beveilig_alles', '' );
     add_option( 'lp_beveiligde_paginas', [] );
 } );

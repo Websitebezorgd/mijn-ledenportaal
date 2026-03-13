@@ -22,7 +22,12 @@ function lp_toon_profiel_velden( $user ) {
         'land'                  => get_user_meta( $user->ID, 'lp_land', true ),
         'afdeling'              => get_user_meta( $user->ID, 'lp_afdeling', true ),
         'soort_pensioen'        => get_user_meta( $user->ID, 'lp_soort_pensioen', true ),
-        'verenigingsfunctie'    => get_user_meta( $user->ID, 'lp_verenigingsfunctie' ),
+        'verenigingsfunctie'         => get_user_meta( $user->ID, 'lp_verenigingsfunctie' ),
+        'iban'                       => get_user_meta( $user->ID, 'lp_iban', true ),
+        'iban_ten_name_van'          => get_user_meta( $user->ID, 'lp_iban_ten_name_van', true ),
+        'incasso_toestemming'        => get_user_meta( $user->ID, 'lp_incasso_toestemming', true ),
+        'incasso_toestemming_datum'  => get_user_meta( $user->ID, 'lp_incasso_toestemming_datum', true ),
+        'account_gewijzigd'          => get_user_meta( $user->ID, 'lp_account_gewijzigd', true ),
     ];
 
     $status_labels = [
@@ -158,6 +163,40 @@ function lp_toon_profiel_velden( $user ) {
             </td>
         </tr>
 
+        <tr>
+            <th><label for="lp_iban"><?php esc_html_e( 'IBAN', 'mijn-ledenportaal' ); ?></label></th>
+            <td><input type="text" name="lp_iban" id="lp_iban" value="<?php echo esc_attr( $meta['iban'] ); ?>" class="regular-text"></td>
+        </tr>
+
+        <tr>
+            <th><label for="lp_iban_ten_name_van"><?php esc_html_e( 'IBAN ten name van', 'mijn-ledenportaal' ); ?></label></th>
+            <td><input type="text" name="lp_iban_ten_name_van" id="lp_iban_ten_name_van" value="<?php echo esc_attr( $meta['iban_ten_name_van'] ); ?>" class="regular-text"></td>
+        </tr>
+
+        <tr>
+            <th><?php esc_html_e( 'Incasso toestemming', 'mijn-ledenportaal' ); ?></th>
+            <td>
+                <label>
+                    <input type="checkbox" name="lp_incasso_toestemming" value="1" <?php checked( $meta['incasso_toestemming'], '1' ); ?>>
+                    <?php esc_html_e( 'Toestemming gegeven', 'mijn-ledenportaal' ); ?>
+                </label>
+                <?php if ( $meta['incasso_toestemming_datum'] ) : ?>
+                    <span style="margin-left:8px; color:#666; font-size:12px;">
+                        <?php echo esc_html( date_i18n( 'd-m-Y', strtotime( $meta['incasso_toestemming_datum'] ) ) ); ?>
+                    </span>
+                <?php endif; ?>
+            </td>
+        </tr>
+
+        <?php if ( $meta['account_gewijzigd'] ) : ?>
+        <tr>
+            <th><?php esc_html_e( 'Laatste wijziging', 'mijn-ledenportaal' ); ?></th>
+            <td style="color:#666; padding-top:9px;">
+                <?php echo esc_html( date_i18n( 'd-m-Y H:i', strtotime( $meta['account_gewijzigd'] ) ) ); ?>
+            </td>
+        </tr>
+        <?php endif; ?>
+
     </table>
     <?php
 }
@@ -197,6 +236,18 @@ function lp_sla_profiel_velden_op( $user_id ) {
             add_user_meta( $user_id, 'lp_verenigingsfunctie', $keuze );
         }
     }
+
+    // IBAN & incasso
+    $huidig_iban = get_user_meta( $user_id, 'lp_iban', true );
+    update_user_meta( $user_id, 'lp_iban',              sanitize_text_field( $_POST['lp_iban'] ?? '' ) );
+    update_user_meta( $user_id, 'lp_iban_ten_name_van', sanitize_text_field( $_POST['lp_iban_ten_name_van'] ?? '' ) );
+    $incasso = isset( $_POST['lp_incasso_toestemming'] ) ? '1' : '';
+    $huidig_incasso = get_user_meta( $user_id, 'lp_incasso_toestemming', true );
+    update_user_meta( $user_id, 'lp_incasso_toestemming', $incasso );
+    if ( $incasso === '1' && $huidig_incasso !== '1' ) {
+        update_user_meta( $user_id, 'lp_incasso_toestemming_datum', current_time( 'Y-m-d H:i:s' ) );
+    }
+    update_user_meta( $user_id, 'lp_account_gewijzigd', current_time( 'Y-m-d H:i:s' ) );
 
     // Trigger mail als status veranderd is
     if ( $nieuwe_status !== $oude_status ) {
@@ -279,6 +330,22 @@ add_action( 'admin_init', function() {
             return in_array( $v, [ 'manual', 'automatic' ], true ) ? $v : 'manual';
         },
     ] );
+    register_setting( 'lp_instellingen', 'lp_beveilig_alles', [
+        'sanitize_callback' => function( $v ) { return $v ? '1' : ''; },
+    ] );
+    register_setting( 'lp_instellingen', 'lp_uitgesloten_urls', [
+        'sanitize_callback' => function( $v ) {
+            $regels = array_map( 'trim', explode( "\n", (string) $v ) );
+            $regels = array_filter( $regels, fn( $r ) => $r !== '' );
+            return implode( "\n", $regels );
+        },
+    ] );
+    register_setting( 'lp_instellingen', 'lp_beveiligde_post_types', [
+        'sanitize_callback' => function( $v ) { return is_array( $v ) ? array_map( 'sanitize_key', $v ) : []; },
+    ] );
+    register_setting( 'lp_instellingen', 'lp_beveiligde_taxonomieen', [
+        'sanitize_callback' => function( $v ) { return is_array( $v ) ? array_map( 'sanitize_key', $v ) : []; },
+    ] );
     register_setting( 'lp_instellingen', 'lp_beveiligde_paginas', [
         'sanitize_callback' => function( $waarde ) {
             if ( ! is_array( $waarde ) ) return [];
@@ -301,6 +368,12 @@ function lp_admin_instellingen_pagina() {
     $nieuw_wachtwoord_id   = get_option( 'lp_nieuw_wachtwoord_pagina_id', 0 );
     $beveiligde            = get_option( 'lp_beveiligde_paginas', [] );
     if ( ! is_array( $beveiligde ) ) $beveiligde = [];
+    $beveilig_alles        = get_option( 'lp_beveilig_alles', '' );
+    $uitgesloten_urls      = get_option( 'lp_uitgesloten_urls', '' );
+    $bev_post_types        = get_option( 'lp_beveiligde_post_types', [] );
+    $bev_taxonomieen       = get_option( 'lp_beveiligde_taxonomieen', [] );
+    $alle_post_types       = get_post_types( [ 'public' => true ], 'objects' );
+    $alle_taxonomieen      = get_taxonomies( [ 'public' => true ], 'objects' );
     $goedkeuring_flow      = get_option( 'lp_goedkeuring_flow', 'manual' );
     ?>
     <div class="wrap">
@@ -452,7 +525,63 @@ function lp_admin_instellingen_pagina() {
                 </tr>
                 <tr>
                     <th scope="row">
-                        <?php esc_html_e( 'Beveiligde pagina\'s', 'mijn-ledenportaal' ); ?>
+                        <?php esc_html_e( 'Beveiliging', 'mijn-ledenportaal' ); ?>
+                    </th>
+                    <td>
+                        <label style="font-weight: 600;">
+                            <input type="checkbox" name="lp_beveilig_alles" value="1" <?php checked( $beveilig_alles, '1' ); ?>>
+                            <?php esc_html_e( 'Beveilig de hele website', 'mijn-ledenportaal' ); ?>
+                        </label>
+                        <p class="description" style="margin-top: 4px;"><?php esc_html_e( 'Alle pagina\'s, archieven en Elementor-templates zijn alleen toegankelijk voor ingelogde leden. De login-, registratie- en wachtwoordpagina\'s blijven altijd bereikbaar.', 'mijn-ledenportaal' ); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="lp_uitgesloten_urls"><?php esc_html_e( 'Uitgesloten URL\'s', 'mijn-ledenportaal' ); ?></label>
+                    </th>
+                    <td>
+                        <textarea name="lp_uitgesloten_urls" id="lp_uitgesloten_urls" rows="6" class="large-text code"><?php echo esc_textarea( $uitgesloten_urls ); ?></textarea>
+                        <p class="description"><?php esc_html_e( 'Één URL-pad per regel, bijv. /over-ons of /nieuws/. Deze pagina\'s zijn altijd publiek toegankelijk, ook als "Beveilig de hele website" aan staat. Gebruik * als wildcard, bijv. /nieuws/*.', 'mijn-ledenportaal' ); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Beveiligde berichttypen', 'mijn-ledenportaal' ); ?></th>
+                    <td>
+                        <fieldset>
+                            <?php foreach ( $alle_post_types as $pt ) :
+                                if ( $pt->name === 'attachment' ) continue; ?>
+                                <label style="display: block; margin-bottom: 4px;">
+                                    <input type="checkbox" name="lp_beveiligde_post_types[]"
+                                        value="<?php echo esc_attr( $pt->name ); ?>"
+                                        <?php checked( in_array( $pt->name, (array) $bev_post_types, true ) ); ?>>
+                                    <?php echo esc_html( $pt->label ); ?>
+                                    <span style="color:#999; font-size:12px;">(<?php echo esc_html( $pt->name ); ?>)</span>
+                                </label>
+                            <?php endforeach; ?>
+                        </fieldset>
+                        <p class="description"><?php esc_html_e( 'Beveiligt zowel individuele berichten als het archiefoverzicht van het berichttype.', 'mijn-ledenportaal' ); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Beveiligde taxonomieën', 'mijn-ledenportaal' ); ?></th>
+                    <td>
+                        <fieldset>
+                            <?php foreach ( $alle_taxonomieen as $tax ) : ?>
+                                <label style="display: block; margin-bottom: 4px;">
+                                    <input type="checkbox" name="lp_beveiligde_taxonomieen[]"
+                                        value="<?php echo esc_attr( $tax->name ); ?>"
+                                        <?php checked( in_array( $tax->name, (array) $bev_taxonomieen, true ) ); ?>>
+                                    <?php echo esc_html( $tax->label ); ?>
+                                    <span style="color:#999; font-size:12px;">(<?php echo esc_html( $tax->name ); ?>)</span>
+                                </label>
+                            <?php endforeach; ?>
+                        </fieldset>
+                        <p class="description"><?php esc_html_e( 'Beveiligt taxonomie-archiefpagina\'s (categorie, tag, custom taxonomie).', 'mijn-ledenportaal' ); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <?php esc_html_e( 'Specifieke beveiligde pagina\'s', 'mijn-ledenportaal' ); ?>
                     </th>
                     <td>
                         <fieldset>
@@ -466,7 +595,7 @@ function lp_admin_instellingen_pagina() {
                                 </label>
                             <?php endforeach; ?>
                         </fieldset>
-                        <p class="description"><?php esc_html_e( 'Niet-ingelogde bezoekers worden doorgestuurd naar de loginpagina.', 'mijn-ledenportaal' ); ?></p>
+                        <p class="description"><?php esc_html_e( 'Gebruik dit als alternatief voor "hele website beveiligen": alleen deze pagina\'s zijn afgeschermd.', 'mijn-ledenportaal' ); ?></p>
                     </td>
                 </tr>
             </table>
