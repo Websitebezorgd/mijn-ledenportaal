@@ -330,6 +330,12 @@ add_action( 'admin_init', function() {
             return in_array( $v, [ 'manual', 'automatic' ], true ) ? $v : 'manual';
         },
     ] );
+    register_setting( 'lp_instellingen', 'lp_registratie_rol', [
+        'sanitize_callback' => function( $v ) {
+            $rollen = array_keys( get_editable_roles() );
+            return in_array( $v, $rollen, true ) ? $v : 'subscriber';
+        },
+    ] );
     register_setting( 'lp_instellingen', 'lp_beveilig_alles', [
         'sanitize_callback' => function( $v ) { return $v ? '1' : ''; },
     ] );
@@ -375,6 +381,7 @@ function lp_admin_instellingen_pagina() {
     $alle_post_types       = get_post_types( [ 'public' => true ], 'objects' );
     $alle_taxonomieen      = get_taxonomies( [ 'public' => true ], 'objects' );
     $goedkeuring_flow      = get_option( 'lp_goedkeuring_flow', 'manual' );
+    $registratie_rol       = get_option( 'lp_registratie_rol', 'subscriber' );
     ?>
     <div class="wrap">
         <h1><?php esc_html_e( 'Ledenportaal — Instellingen', 'mijn-ledenportaal' ); ?></h1>
@@ -521,6 +528,21 @@ function lp_admin_instellingen_pagina() {
                                 <?php esc_html_e( 'Automatisch — nieuwe leden worden direct goedgekeurd na registratie', 'mijn-ledenportaal' ); ?>
                             </label>
                         </fieldset>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <?php esc_html_e( 'Rol bij registratie', 'mijn-ledenportaal' ); ?>
+                    </th>
+                    <td>
+                        <select name="lp_registratie_rol" id="lp_registratie_rol">
+                            <?php foreach ( get_editable_roles() as $rol_slug => $rol_info ) : ?>
+                                <option value="<?php echo esc_attr( $rol_slug ); ?>" <?php selected( $registratie_rol, $rol_slug ); ?>>
+                                    <?php echo esc_html( translate_user_role( $rol_info['name'] ) ); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <p class="description"><?php esc_html_e( 'De WordPress-rol die nieuwe leden krijgen na registratie.', 'mijn-ledenportaal' ); ?></p>
                     </td>
                 </tr>
                 <tr>

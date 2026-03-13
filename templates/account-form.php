@@ -75,10 +75,9 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             </div>
 
             <div class="lp-form-groep">
-                <label class="lp-label" for="lp-email"><?php esc_html_e( 'E-mailadres', 'mijn-ledenportaal' ); ?> <span class="lp-verplicht">*</span></label>
-                <input class="lp-input" type="email" id="lp-email" name="email"
-                    value="<?php echo esc_attr( $gebruiker->user_email ); ?>"
-                    required autocomplete="email">
+                <label class="lp-label"><?php esc_html_e( 'E-mailadres', 'mijn-ledenportaal' ); ?></label>
+                <input class="lp-input" type="email" value="<?php echo esc_attr( $gebruiker->user_email ); ?>" disabled>
+                <p class="lp-veld-info"><?php esc_html_e( 'Je e-mailadres kan niet worden gewijzigd. Neem contact op met de beheerder.', 'mijn-ledenportaal' ); ?></p>
             </div>
         </div>
 

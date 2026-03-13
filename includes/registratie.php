@@ -175,7 +175,7 @@ function lp_verwerk_registratie() {
         'first_name'   => $data['voornaam'],
         'last_name'    => $data['achternaam'],
         'display_name' => $data['voornaam'] . ' ' . $data['achternaam'],
-        'role'         => 'subscriber',
+        'role'         => get_option( 'lp_registratie_rol', 'subscriber' ),
     ] );
 
     if ( is_wp_error( $user_id ) ) {

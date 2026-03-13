@@ -20,7 +20,8 @@ function lp_verwerk_account() {
 
     $voornaam               = sanitize_text_field( $_POST['voornaam'] ?? '' );
     $achternaam             = sanitize_text_field( $_POST['achternaam'] ?? '' );
-    $email                  = sanitize_email( $_POST['email'] ?? '' );
+    $gebruiker              = get_userdata( $user_id );
+    $email                  = $gebruiker->user_email;
     $geslacht               = sanitize_key( $_POST['geslacht'] ?? '' );
     $geboortedatum          = sanitize_text_field( $_POST['geboortedatum'] ?? '' );
     $telefoonnummer         = sanitize_text_field( $_POST['telefoonnummer'] ?? '' );
@@ -43,12 +44,6 @@ function lp_verwerk_account() {
     $fouten = [];
     if ( empty( $voornaam ) )   $fouten[] = __( 'Voornaam is verplicht.', 'mijn-ledenportaal' );
     if ( empty( $achternaam ) ) $fouten[] = __( 'Achternaam is verplicht.', 'mijn-ledenportaal' );
-    if ( ! is_email( $email ) ) $fouten[] = __( 'Voer een geldig e-mailadres in.', 'mijn-ledenportaal' );
-
-    $bestaande = get_user_by( 'email', $email );
-    if ( $bestaande && $bestaande->ID !== $user_id ) {
-        $fouten[] = __( 'Dit e-mailadres is al in gebruik.', 'mijn-ledenportaal' );
-    }
 
     if ( ! empty( $nieuw_wachtwoord ) ) {
         if ( strlen( $nieuw_wachtwoord ) < 8 )          $fouten[] = __( 'Nieuw wachtwoord moet minimaal 8 tekens bevatten.', 'mijn-ledenportaal' );
@@ -85,7 +80,6 @@ function lp_verwerk_account() {
         'ID'           => $user_id,
         'first_name'   => $voornaam,
         'last_name'    => $achternaam,
-        'user_email'   => $email,
         'display_name' => $voornaam . ' ' . $achternaam,
     ];
     if ( ! empty( $nieuw_wachtwoord ) ) {
