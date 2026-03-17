@@ -3,17 +3,17 @@
    ========================================================================== */
 
 :root {
-    --lp-blauw:       #0091D5;
-    --lp-donkerblauw: #006699;
-    --lp-grijs:       #f5f5f5;
-    --lp-border:      #e0e0e0;
-    --lp-tekst:       #333333;
-    --lp-label:       #0091D5;
-    --lp-succes:      #4caf50;
-    --lp-fout:        #d9534f;
-    --lp-waarschuwing:#f0ad4e;
-    --lp-radius:      4px;
-    --lp-overgang:    0.2s ease;
+  --lp-blauw: #0091d5;
+  --lp-donkerblauw: #006699;
+  --lp-grijs: #f5f5f5;
+  --lp-border: #e0e0e0;
+  --lp-tekst: #333333;
+  --lp-label: #0091d5;
+  --lp-succes: #4caf50;
+  --lp-fout: #d9534f;
+  --lp-waarschuwing: #f0ad4e;
+  --lp-radius: 4px;
+  --lp-overgang: 0.2s ease;
 }
 
 /* ==========================================================================
@@ -21,12 +21,12 @@
    ========================================================================== */
 
 .lp-formulier-wrap {
-    max-width: 800px;
-    margin: 0 auto;
+  max-width: 800px;
+  margin: 0 auto;
 }
 
 .lp-formulier-wrap--smal {
-    max-width: 480px;
+  max-width: 480px;
 }
 
 /* ==========================================================================
@@ -34,38 +34,38 @@
    ========================================================================== */
 
 .lp-melding {
-    padding: 14px 18px;
-    border-radius: var(--lp-radius);
-    margin-bottom: 24px;
-    font-size: 15px;
-    line-height: 1.5;
+  padding: 14px 18px;
+  border-radius: var(--lp-radius);
+  margin-bottom: 24px;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 .lp-melding ul {
-    margin: 0;
-    padding: 0 0 0 18px;
+  margin: 0;
+  padding: 0 0 0 18px;
 }
 
 .lp-melding ul li {
-    margin-bottom: 4px;
+  margin-bottom: 4px;
 }
 
 .lp-melding--succes {
-    background-color: #e8f5e9;
-    border-left: 4px solid var(--lp-succes);
-    color: #2e7d32;
+  background-color: #e8f5e9;
+  border-left: 4px solid var(--lp-succes);
+  color: #2e7d32;
 }
 
 .lp-melding--fout {
-    background-color: #fdecea;
-    border-left: 4px solid var(--lp-fout);
-    color: #c62828;
+  background-color: #fdecea;
+  border-left: 4px solid var(--lp-fout);
+  color: #c62828;
 }
 
 .lp-melding--waarschuwing {
-    background-color: #fff8e1;
-    border-left: 4px solid var(--lp-waarschuwing);
-    color: #e65100;
+  background-color: #fff8e1;
+  border-left: 4px solid var(--lp-waarschuwing);
+  color: #e65100;
 }
 
 /* ==========================================================================
@@ -73,46 +73,46 @@
    ========================================================================== */
 
 .lp-form {
-    background: #ffffff;
-    padding: 32px;
-    border-radius: var(--lp-radius);
-    border: 1px solid var(--lp-border);
+  background: #ffffff;
+  padding: 32px;
+  border-radius: var(--lp-radius);
+  border: 1px solid var(--lp-border);
 }
 
 .lp-sectie-titel {
-    font-size: 14px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--lp-donkerblauw);
-    border-bottom: 2px solid var(--lp-border);
-    padding-bottom: 8px;
-    margin: 28px 0 20px;
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--lp-donkerblauw);
+  border-bottom: 2px solid var(--lp-border);
+  padding-bottom: 8px;
+  margin: 28px 0 20px;
 }
 
 .lp-sectie-titel:first-child {
-    margin-top: 0;
+  margin-top: 0;
 }
 
 .lp-form-groep {
-    margin-bottom: 20px;
+  margin-bottom: 20px;
 }
 
 .lp-form-groep--inline {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .lp-form-groep--acties {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    margin-top: 28px;
-    padding-top: 20px;
-    border-top: 1px solid var(--lp-border);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--lp-border);
 }
 
 /* ==========================================================================
@@ -120,21 +120,21 @@
    ========================================================================== */
 
 .lp-rij {
-    display: grid;
-    gap: 16px;
-    margin-bottom: 0;
+  display: grid;
+  gap: 16px;
+  margin-bottom: 0;
 }
 
 .lp-rij--2 {
-    grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
 }
 
 .lp-rij--3 {
-    grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
 }
 
 .lp-col--2 {
-    grid-column: span 2;
+  grid-column: span 2;
 }
 
 /* ==========================================================================
@@ -142,17 +142,17 @@
    ========================================================================== */
 
 .lp-label {
-    display: block;
-    font-size: 12px;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--lp-label);
-    margin-bottom: 6px;
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--lp-label);
+  margin-bottom: 6px;
 }
 
 .lp-verplicht {
-    color: var(--lp-fout);
+  color: var(--lp-fout);
 }
 
 /* ==========================================================================
@@ -161,38 +161,40 @@
 
 .lp-input,
 .lp-select {
-    display: block;
-    width: 100%;
-    padding: 10px 14px;
-    font-size: 15px;
-    line-height: 1.4;
-    color: var(--lp-tekst);
-    background-color: #ffffff;
-    border: 1px solid var(--lp-border);
-    border-radius: var(--lp-radius);
-    box-sizing: border-box;
-    transition: border-color var(--lp-overgang), box-shadow var(--lp-overgang);
-    -webkit-appearance: none;
-    appearance: none;
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--lp-tekst);
+  background-color: #ffffff;
+  border: 1px solid var(--lp-border);
+  border-radius: var(--lp-radius);
+  box-sizing: border-box;
+  transition:
+    border-color var(--lp-overgang),
+    box-shadow var(--lp-overgang);
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .lp-input:focus,
 .lp-select:focus {
-    outline: none;
-    border-color: var(--lp-blauw);
-    box-shadow: 0 0 0 3px rgba(0, 145, 213, 0.15);
+  outline: none;
+  border-color: var(--lp-blauw);
+  box-shadow: 0 0 0 3px rgba(0, 145, 213, 0.15);
 }
 
 .lp-input--smal {
-    max-width: 160px;
+  max-width: 160px;
 }
 
 .lp-select {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%230091D5' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat: no-repeat;
-    background-position: right 14px center;
-    padding-right: 40px;
-    cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%230091D5' stroke-width='2' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 40px;
+  cursor: pointer;
 }
 
 /* ==========================================================================
@@ -200,39 +202,39 @@
    ========================================================================== */
 
 .lp-wachtwoord-wrap {
-    position: relative;
-    display: flex;
-    align-items: stretch;
+  position: relative;
+  display: flex;
+  align-items: stretch;
 }
 
 .lp-wachtwoord-wrap .lp-input {
-    flex: 1;
-    border-radius: var(--lp-radius) 0 0 var(--lp-radius);
-    border-right: none;
+  flex: 1;
+  border-radius: var(--lp-radius) 0 0 var(--lp-radius);
+  border-right: none;
 }
 
 .lp-wachtwoord-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0 12px;
-    background: var(--lp-grijs);
-    border: 1px solid var(--lp-border);
-    border-left: none;
-    border-radius: 0 var(--lp-radius) var(--lp-radius) 0;
-    cursor: pointer;
-    font-size: 16px;
-    color: #666;
-    transition: background var(--lp-overgang);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  background: var(--lp-grijs);
+  border: 1px solid var(--lp-border);
+  border-left: none;
+  border-radius: 0 var(--lp-radius) var(--lp-radius) 0;
+  cursor: pointer;
+  font-size: 16px;
+  color: #666;
+  transition: background var(--lp-overgang);
 }
 
 .lp-wachtwoord-toggle:hover {
-    background: var(--lp-border);
+  background: var(--lp-border);
 }
 
 .lp-wachtwoord-toggle:focus {
-    outline: 2px solid var(--lp-blauw);
-    outline-offset: -2px;
+  outline: 2px solid var(--lp-blauw);
+  outline-offset: -2px;
 }
 
 /* ==========================================================================
@@ -240,26 +242,26 @@
    ========================================================================== */
 
 .lp-checkboxes {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 .lp-checkbox-label {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    font-size: 15px;
-    color: var(--lp-tekst);
-    cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  color: var(--lp-tekst);
+  cursor: pointer;
 }
 
 .lp-checkbox-label input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
-    accent-color: var(--lp-blauw);
-    cursor: pointer;
-    flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--lp-blauw);
+  cursor: pointer;
+  flex-shrink: 0;
 }
 
 /* ==========================================================================
@@ -267,37 +269,36 @@
    ========================================================================== */
 
 .lp-knop {
-    display: inline-block;
-    padding: 12px 28px;
-    font-size: 15px;
-    font-weight: 700;
-    text-align: center;
-    text-decoration: none;
-    color: #ffffff;
-    background-color: var(--lp-blauw);
-    border: none;
-    border-radius: var(--lp-radius);
-    cursor: pointer;
-    transition: background-color var(--lp-overgang);
-    white-space: nowrap;
+  display: inline-block;
+  padding: 12px 28px;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  text-decoration: none;
+  color: #ffffff;
+  background-color: var(--lp-blauw);
+  border: none;
+  border-radius: var(--lp-radius);
+  cursor: pointer;
+  transition: background-color var(--lp-overgang);
+  white-space: nowrap;
 }
 
 .lp-knop:hover,
 .lp-knop:focus {
-    background-color: var(--lp-donkerblauw);
-    color: #ffffff;
-    outline: none;
+  background-color: var(--lp-donkerblauw);
+  color: #ffffff;
+  outline: none;
 }
 
 .lp-knop:focus-visible {
-    box-shadow: 0 0 0 3px rgba(0, 145, 213, 0.4);
+  box-shadow: 0 0 0 3px rgba(0, 145, 213, 0.4);
 }
 
 .lp-knop:disabled {
-    background-color: #b0d4ea;
-    border-color: #b0d4ea;
-    cursor: not-allowed;
-    opacity: 0.7;
+  cursor: not-allowed;
+  opacity: 0.4 !important;
+  pointer-events: none;
 }
 
 /* ==========================================================================
@@ -305,26 +306,26 @@
    ========================================================================== */
 
 .lp-link {
-    color: var(--lp-blauw);
-    text-decoration: underline;
+  color: var(--lp-blauw);
+  text-decoration: underline;
 }
 
 .lp-link:hover {
-    color: var(--lp-donkerblauw);
+  color: var(--lp-donkerblauw);
 }
 
 .lp-link--klein {
-    font-size: 13px;
+  font-size: 13px;
 }
 
 .lp-link--uitloggen {
-    font-size: 14px;
-    color: #888;
-    margin-left: auto;
+  font-size: 14px;
+  color: #888;
+  margin-left: auto;
 }
 
 .lp-link--uitloggen:hover {
-    color: var(--lp-fout);
+  color: var(--lp-fout);
 }
 
 /* ==========================================================================
@@ -332,16 +333,16 @@
    ========================================================================== */
 
 .lp-veld-hint {
-    font-size: 12px;
-    color: #888;
-    margin: 4px 0 0;
+  font-size: 12px;
+  color: #888;
+  margin: 4px 0 0;
 }
 
 .lp-form-voetnoot {
-    text-align: center;
-    font-size: 14px;
-    color: #666;
-    margin-top: 16px;
+  text-align: center;
+  font-size: 14px;
+  color: #666;
+  margin-top: 16px;
 }
 
 /* ==========================================================================
@@ -349,44 +350,46 @@
    ========================================================================== */
 
 .lp-tabs {
-    display: flex;
-    gap: 0;
-    border-bottom: 2px solid var(--lp-border);
-    margin-bottom: 0;
-    flex-wrap: wrap;
+  display: flex;
+  gap: 0;
+  border-bottom: 2px solid var(--lp-border);
+  margin-bottom: 0;
+  flex-wrap: wrap;
 }
 
 .lp-tab {
-    padding: 12px 20px;
-    font-size: 14px;
-    font-weight: 600;
-    color: #666;
-    background: none;
-    border: none;
-    border-bottom: 2px solid transparent;
-    margin-bottom: -2px;
-    cursor: pointer;
-    transition: color var(--lp-overgang), border-color var(--lp-overgang);
+  padding: 12px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  transition:
+    color var(--lp-overgang),
+    border-color var(--lp-overgang);
 }
 
 .lp-tab:hover {
-    color: var(--lp-blauw);
+  color: var(--lp-blauw);
 }
 
 .lp-tab--actief,
 .lp-tab:focus-visible {
-    color: var(--lp-blauw);
-    border-bottom-color: var(--lp-blauw);
-    outline: none;
+  color: var(--lp-blauw);
+  border-bottom-color: var(--lp-blauw);
+  outline: none;
 }
 
 .lp-tab-inhoud {
-    display: none;
-    padding-top: 24px;
+  display: none;
+  padding-top: 24px;
 }
 
 .lp-tab-inhoud--actief {
-    display: block;
+  display: block;
 }
 
 /* ==========================================================================
@@ -394,38 +397,38 @@
    ========================================================================== */
 
 @media (max-width: 600px) {
-    .lp-form {
-        padding: 20px 16px;
-    }
+  .lp-form {
+    padding: 20px 16px;
+  }
 
-    .lp-rij--2,
-    .lp-rij--3 {
-        grid-template-columns: 1fr;
-    }
+  .lp-rij--2,
+  .lp-rij--3 {
+    grid-template-columns: 1fr;
+  }
 
-    .lp-col--2 {
-        grid-column: span 1;
-    }
+  .lp-col--2 {
+    grid-column: span 1;
+  }
 
-    .lp-formulier-wrap {
-        max-width: 100%;
-    }
+  .lp-formulier-wrap {
+    max-width: 100%;
+  }
 
-    .lp-knop {
-        width: 100%;
-    }
+  .lp-knop {
+    width: 100%;
+  }
 
-    .lp-tab {
-        padding: 10px 14px;
-        font-size: 13px;
-    }
+  .lp-tab {
+    padding: 10px 14px;
+    font-size: 13px;
+  }
 
-    .lp-form-groep--acties {
-        flex-direction: column;
-        align-items: flex-start;
-    }
+  .lp-form-groep--acties {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 
-    .lp-link--uitloggen {
-        margin-left: 0;
-    }
+  .lp-link--uitloggen {
+    margin-left: 0;
+  }
 }

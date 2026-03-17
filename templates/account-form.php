@@ -40,7 +40,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         </button>
     </div>
 
-    <form class="lp-form" method="post" novalidate>
+    <form class="lp-form" id="lp-account-form" method="post" novalidate>
         <?php wp_nonce_field( 'lp_account', 'lp_account_nonce' ); ?>
 
         <!-- Tab 1: Account -->
