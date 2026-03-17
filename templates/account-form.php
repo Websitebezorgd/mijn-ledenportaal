@@ -45,7 +45,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
         <!-- Tab 1: Account -->
         <div class="lp-tab-inhoud lp-tab-inhoud--actief" id="lp-tab-account">
-            <h3 class="lp-sectie-titel"><?php esc_html_e( 'Persoonlijke gegevens', 'mijn-ledenportaal' ); ?></h3>
+            <h5 class="lp-sectie-titel"><?php esc_html_e( 'Persoonlijke gegevens', 'mijn-ledenportaal' ); ?></h5>
 
             <div class="lp-rij lp-rij--2">
                 <div class="lp-form-groep">
@@ -83,7 +83,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
         <!-- Tab 2: Adresgegevens -->
         <div class="lp-tab-inhoud" id="lp-tab-adres">
-            <h3 class="lp-sectie-titel"><?php esc_html_e( 'Adresgegevens', 'mijn-ledenportaal' ); ?></h3>
+            <h5 class="lp-sectie-titel"><?php esc_html_e( 'Adresgegevens', 'mijn-ledenportaal' ); ?></h5>
 
             <div class="lp-rij lp-rij--3">
                 <div class="lp-form-groep lp-col--2">
@@ -134,7 +134,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
         <!-- Tab 3: Extra gegevens -->
         <div class="lp-tab-inhoud" id="lp-tab-extra">
-            <h3 class="lp-sectie-titel"><?php esc_html_e( 'Contactgegevens', 'mijn-ledenportaal' ); ?></h3>
+            <h5 class="lp-sectie-titel"><?php esc_html_e( 'Contactgegevens', 'mijn-ledenportaal' ); ?></h5>
 
             <div class="lp-rij lp-rij--2">
                 <div class="lp-form-groep">
@@ -157,7 +157,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                     value="<?php echo esc_attr( $meta['geboortedatum'] ); ?>">
             </div>
 
-            <h3 class="lp-sectie-titel"><?php esc_html_e( 'Lidmaatschapsgegevens', 'mijn-ledenportaal' ); ?></h3>
+            <h5 class="lp-sectie-titel"><?php esc_html_e( 'Lidmaatschapsgegevens', 'mijn-ledenportaal' ); ?></h5>
 
             <div class="lp-form-groep">
                 <label class="lp-label" for="lp-afdeling"><?php esc_html_e( 'Laatste afdeling/functie bij Delta Lloyd Groep', 'mijn-ledenportaal' ); ?></label>
@@ -200,7 +200,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
         <!-- Tab 4: Betaalgegevens -->
         <div class="lp-tab-inhoud" id="lp-tab-betaal">
-            <h3 class="lp-sectie-titel"><?php esc_html_e( 'Betaalgegevens', 'mijn-ledenportaal' ); ?></h3>
+            <h5 class="lp-sectie-titel"><?php esc_html_e( 'Betaalgegevens', 'mijn-ledenportaal' ); ?></h5>
             <p class="lp-veld-hint"><?php esc_html_e( 'Vul je bankgegevens in om automatisch incasso te machtigen voor de contributie.', 'mijn-ledenportaal' ); ?></p>
 
             <?php if ( $meta['incasso_toestemming'] === '1' && $meta['incasso_toestemming_datum'] ) : ?>
@@ -251,7 +251,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 
         <!-- Tab 5: Wachtwoord -->
         <div class="lp-tab-inhoud" id="lp-tab-wachtwoord">
-            <h3 class="lp-sectie-titel"><?php esc_html_e( 'Wachtwoord wijzigen', 'mijn-ledenportaal' ); ?></h3>
+            <h5 class="lp-sectie-titel"><?php esc_html_e( 'Wachtwoord wijzigen', 'mijn-ledenportaal' ); ?></h5>
             <p class="lp-veld-hint"><?php esc_html_e( 'Laat leeg als je je wachtwoord niet wilt wijzigen.', 'mijn-ledenportaal' ); ?></p>
 
             <div class="lp-form-groep">

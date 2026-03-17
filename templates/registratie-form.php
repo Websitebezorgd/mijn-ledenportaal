@@ -45,7 +45,7 @@ $checked_functie = function( $waarde ) use ( $ingevoerd ) {
         <form class="lp-form" method="post" novalidate>
             <?php wp_nonce_field( 'lp_registratie', 'lp_registratie_nonce' ); ?>
 
-            <h3 class="lp-sectie-titel"><?php esc_html_e( 'Persoonlijke gegevens', 'mijn-ledenportaal' ); ?></h3>
+            <h5 class="lp-sectie-titel"><?php esc_html_e( 'Persoonlijke gegevens', 'mijn-ledenportaal' ); ?></h5>
 
             <div class="lp-rij lp-rij--2">
                 <div class="lp-form-groep">
@@ -80,7 +80,7 @@ $checked_functie = function( $waarde ) use ( $ingevoerd ) {
                     value="<?php echo $v( 'geboortedatum' ); ?>">
             </div>
 
-            <h3 class="lp-sectie-titel"><?php esc_html_e( 'Contactgegevens', 'mijn-ledenportaal' ); ?></h3>
+            <h5 class="lp-sectie-titel"><?php esc_html_e( 'Contactgegevens', 'mijn-ledenportaal' ); ?></h5>
 
             <div class="lp-form-groep">
                 <label class="lp-label" for="lp-email"><?php esc_html_e( 'E-mailadres', 'mijn-ledenportaal' ); ?> <span class="lp-verplicht">*</span></label>
@@ -104,7 +104,7 @@ $checked_functie = function( $waarde ) use ( $ingevoerd ) {
                 </div>
             </div>
 
-            <h3 class="lp-sectie-titel"><?php esc_html_e( 'Adresgegevens', 'mijn-ledenportaal' ); ?></h3>
+            <h5 class="lp-sectie-titel"><?php esc_html_e( 'Adresgegevens', 'mijn-ledenportaal' ); ?></h5>
 
             <div class="lp-rij lp-rij--3">
                 <div class="lp-form-groep lp-col--2">
@@ -152,7 +152,7 @@ $checked_functie = function( $waarde ) use ( $ingevoerd ) {
                 </select>
             </div>
 
-            <h3 class="lp-sectie-titel"><?php esc_html_e( 'Lidmaatschapsgegevens', 'mijn-ledenportaal' ); ?></h3>
+            <h5 class="lp-sectie-titel"><?php esc_html_e( 'Lidmaatschapsgegevens', 'mijn-ledenportaal' ); ?></h5>
 
             <div class="lp-form-groep">
                 <label class="lp-label" for="lp-afdeling"><?php esc_html_e( 'Laatste afdeling/functie bij Delta Lloyd Groep', 'mijn-ledenportaal' ); ?></label>
@@ -192,7 +192,7 @@ $checked_functie = function( $waarde ) use ( $ingevoerd ) {
                 </div>
             </div>
 
-            <h3 class="lp-sectie-titel"><?php esc_html_e( 'Betaalgegevens', 'mijn-ledenportaal' ); ?></h3>
+            <h5 class="lp-sectie-titel"><?php esc_html_e( 'Betaalgegevens', 'mijn-ledenportaal' ); ?></h5>
             <p class="lp-veld-hint"><?php esc_html_e( 'Vul je bankgegevens in om automatisch incasso te machtigen voor de contributie.', 'mijn-ledenportaal' ); ?></p>
 
             <div class="lp-form-groep">
@@ -231,7 +231,7 @@ $checked_functie = function( $waarde ) use ( $ingevoerd ) {
                 </label>
             </div>
 
-            <h3 class="lp-sectie-titel"><?php esc_html_e( 'Wachtwoord', 'mijn-ledenportaal' ); ?></h3>
+            <h5 class="lp-sectie-titel"><?php esc_html_e( 'Wachtwoord', 'mijn-ledenportaal' ); ?></h5>
 
             <div class="lp-form-groep">
                 <label class="lp-label" for="lp-wachtwoord"><?php esc_html_e( 'Wachtwoord', 'mijn-ledenportaal' ); ?> <span class="lp-verplicht">*</span></label>
