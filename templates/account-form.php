@@ -291,7 +291,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             </p>
         <?php endif; ?>
         <div class="lp-form-groep lp-form-groep--acties">
-            <button type="submit" name="lp_account_submit" class="lp-knop">
+            <button type="submit" name="lp_account_submit" class="lp-knop" id="lp-opslaan-knop" disabled>
                 <?php esc_html_e( 'Wijzigingen opslaan', 'mijn-ledenportaal' ); ?>
             </button>
             <a href="<?php echo esc_url( lp_uitlog_url() ); ?>" class="lp-link lp-link--uitloggen">
@@ -302,6 +302,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     </form>
     <script>
     (function() {
+        // IBAN match check
         var iban1 = document.getElementById('lp-iban');
         var iban2 = document.getElementById('lp-iban2');
         var melding = iban2 ? iban2.closest('.lp-form-groep').querySelector('.lp-iban-match-melding') : null;
@@ -311,6 +312,34 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         }
         if (iban1) iban1.addEventListener('input', checkIban);
         if (iban2) iban2.addEventListener('input', checkIban);
+
+        // Knop inschakelen bij wijziging
+        var form  = document.getElementById('lp-account-form');
+        var knop  = document.getElementById('lp-opslaan-knop');
+        if (!form || !knop) return;
+
+        var snapshot = {};
+        form.querySelectorAll('input:not([disabled]), select, textarea').forEach(function(el) {
+            var key = el.name + '||' + el.type;
+            if (el.type === 'checkbox' || el.type === 'radio') {
+                snapshot[key] = el.checked;
+            } else {
+                snapshot[key] = el.value;
+            }
+        });
+
+        function isGewijzigd() {
+            var gewijzigd = false;
+            form.querySelectorAll('input:not([disabled]), select, textarea').forEach(function(el) {
+                var key = el.name + '||' + el.type;
+                var huidig = (el.type === 'checkbox' || el.type === 'radio') ? el.checked : el.value;
+                if (snapshot[key] !== huidig) gewijzigd = true;
+            });
+            return gewijzigd;
+        }
+
+        form.addEventListener('input', function() { knop.disabled = !isGewijzigd(); });
+        form.addEventListener('change', function() { knop.disabled = !isGewijzigd(); });
     })();
     </script>
 
