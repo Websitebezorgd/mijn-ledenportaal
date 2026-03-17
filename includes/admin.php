@@ -805,8 +805,8 @@ function lp_admin_mails_pagina() {
             $defaults = lp_mail_defaults();
             $first    = true;
             foreach ( $mails as $sleutel => $info ) :
-                $huidig_onderwerp = get_option( 'lp_mail_onderwerp_' . $sleutel, '' );
-                $huidig_inhoud    = get_option( 'lp_mail_inhoud_' . $sleutel, '' );
+                $huidig_onderwerp = get_option( 'lp_mail_onderwerp_' . $sleutel, '' ) ?: ( $defaults[ $sleutel ]['onderwerp'] ?? '' );
+                $huidig_inhoud    = get_option( 'lp_mail_inhoud_' . $sleutel, '' )    ?: ( $defaults[ $sleutel ]['inhoud']    ?? '' );
                 $ph               = $mail_placeholders[ $sleutel ] ?? [];
                 $editor_id        = 'lp_mail_inhoud_' . str_replace( '-', '_', $sleutel );
             ?>
@@ -825,8 +825,7 @@ function lp_admin_mails_pagina() {
                             name="lp_mail_onderwerp_<?php echo esc_attr( $sleutel ); ?>"
                             id="lp_mail_onderwerp_<?php echo esc_attr( $sleutel ); ?>"
                             value="<?php echo esc_attr( $huidig_onderwerp ); ?>"
-                            class="large-text"
-                            placeholder="<?php echo esc_attr( $defaults[ $sleutel ]['onderwerp'] ?? '' ); ?>">
+                            class="large-text">
                     </td>
                 </tr>
                 <tr>
