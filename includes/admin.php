@@ -310,6 +310,7 @@ add_action( 'admin_init', function() {
     register_setting( 'lp_instellingen', 'lp_registratie_pagina_id', [ 'sanitize_callback' => 'absint' ] );
     register_setting( 'lp_instellingen', 'lp_wachtwoord_vergeten_pagina_id', [ 'sanitize_callback' => 'absint' ] );
     register_setting( 'lp_instellingen', 'lp_nieuw_wachtwoord_pagina_id', [ 'sanitize_callback' => 'absint' ] );
+    register_setting( 'lp_instellingen', 'lp_na_login_pagina_id',         [ 'sanitize_callback' => 'absint' ] );
     // Mail toggles
     $mail_sleutels = [
         'registratie_bevestiging',
@@ -325,6 +326,11 @@ add_action( 'admin_init', function() {
         ] );
     }
     register_setting( 'lp_mails', 'lp_notificatie_email', [ 'sanitize_callback' => 'sanitize_email' ] );
+    $mail_namen = [ 'registratie_bevestiging', 'admin_nieuw_lid', 'account_goedgekeurd', 'account_afgewezen', 'account_bijgewerkt', 'wachtwoord_reset' ];
+    foreach ( $mail_namen as $naam ) {
+        register_setting( 'lp_mails', 'lp_mail_onderwerp_' . $naam, [ 'sanitize_callback' => 'sanitize_text_field' ] );
+        register_setting( 'lp_mails', 'lp_mail_inhoud_' . $naam,    [ 'sanitize_callback' => 'wp_kses_post' ] );
+    }
     register_setting( 'lp_instellingen', 'lp_goedkeuring_flow', [
         'sanitize_callback' => function( $v ) {
             return in_array( $v, [ 'manual', 'automatic' ], true ) ? $v : 'manual';
@@ -379,6 +385,7 @@ function lp_admin_instellingen_pagina() {
     $registratie_id        = get_option( 'lp_registratie_pagina_id', 0 );
     $wachtwoord_vergeten_id = get_option( 'lp_wachtwoord_vergeten_pagina_id', 0 );
     $nieuw_wachtwoord_id   = get_option( 'lp_nieuw_wachtwoord_pagina_id', 0 );
+    $na_login_id           = get_option( 'lp_na_login_pagina_id', 0 );
     $beveiligde            = get_option( 'lp_beveiligde_paginas', [] );
     if ( ! is_array( $beveiligde ) ) $beveiligde = [];
     $beveilig_alles        = get_option( 'lp_beveilig_alles', '' );
@@ -457,6 +464,27 @@ function lp_admin_instellingen_pagina() {
                                 <?php esc_html_e( 'Bekijk', 'mijn-ledenportaal' ); ?>
                             </a>
                         <?php endif; ?>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row">
+                        <label for="lp_na_login_pagina_id"><?php esc_html_e( 'Doorsturen na inloggen', 'mijn-ledenportaal' ); ?></label>
+                    </th>
+                    <td>
+                        <select name="lp_na_login_pagina_id" id="lp_na_login_pagina_id">
+                            <option value="0"><?php esc_html_e( '— Accountpagina (standaard) —', 'mijn-ledenportaal' ); ?></option>
+                            <?php foreach ( $alle_paginas as $pagina ) : ?>
+                                <option value="<?php echo esc_attr( $pagina->ID ); ?>" <?php selected( $na_login_id, $pagina->ID ); ?>>
+                                    <?php echo esc_html( $pagina->post_title ); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <?php if ( $na_login_id ) : ?>
+                            <a href="<?php echo esc_url( get_permalink( $na_login_id ) ); ?>" target="_blank" class="button button-small" style="margin-left: 8px;">
+                                <?php esc_html_e( 'Bekijk', 'mijn-ledenportaal' ); ?>
+                            </a>
+                        <?php endif; ?>
+                        <p class="description"><?php esc_html_e( 'Pagina waarnaar leden worden doorgestuurd na het inloggen. Standaard is dat de accountpagina.', 'mijn-ledenportaal' ); ?></p>
                     </td>
                 </tr>
                 <tr>
@@ -761,6 +789,76 @@ function lp_admin_mails_pagina() {
                     </td>
                 </tr>
             </table>
+
+            <h2 style="margin-top: 32px;"><?php esc_html_e( 'Inhoud bewerken', 'mijn-ledenportaal' ); ?></h2>
+            <p style="margin-top: 0;"><?php esc_html_e( 'Laat een veld leeg om de standaardtekst te gebruiken. Gebruik de getoonde placeholders om dynamische waarden in te voegen.', 'mijn-ledenportaal' ); ?></p>
+
+            <?php
+            $mail_placeholders = [
+                'registratie_bevestiging' => [ '{{voornaam}}', '{{volledige_naam}}', '{{email}}', '{{site_naam}}', '{{site_url}}' ],
+                'admin_nieuw_lid'         => [ '{{volledige_naam}}', '{{email}}', '{{site_naam}}', '{{site_url}}', '{{admin_url}}' ],
+                'account_goedgekeurd'     => [ '{{voornaam}}', '{{volledige_naam}}', '{{email}}', '{{site_naam}}', '{{site_url}}', '{{login_url}}' ],
+                'account_afgewezen'       => [ '{{voornaam}}', '{{volledige_naam}}', '{{email}}', '{{site_naam}}', '{{site_url}}', '{{admin_email}}' ],
+                'account_bijgewerkt'      => [ '{{volledige_naam}}', '{{email}}', '{{site_naam}}', '{{site_url}}', '{{admin_url}}' ],
+                'wachtwoord_reset'        => [ '{{voornaam}}', '{{volledige_naam}}', '{{email}}', '{{site_naam}}', '{{site_url}}', '{{reset_url}}' ],
+            ];
+            $defaults = lp_mail_defaults();
+            $first    = true;
+            foreach ( $mails as $sleutel => $info ) :
+                $huidig_onderwerp = get_option( 'lp_mail_onderwerp_' . $sleutel, '' );
+                $huidig_inhoud    = get_option( 'lp_mail_inhoud_' . $sleutel, '' );
+                $ph               = $mail_placeholders[ $sleutel ] ?? [];
+                $editor_id        = 'lp_mail_inhoud_' . str_replace( '-', '_', $sleutel );
+            ?>
+            <?php if ( ! $first ) : ?><hr style="margin: 32px 0;"><?php endif; $first = false; ?>
+            <h3 style="margin-bottom: 4px;"><?php echo esc_html( $info['label'] ); ?></h3>
+
+            <table class="form-table" style="margin-top: 8px;">
+                <tr>
+                    <th style="width: 160px; padding: 8px 0;">
+                        <label for="lp_mail_onderwerp_<?php echo esc_attr( $sleutel ); ?>">
+                            <?php esc_html_e( 'Onderwerp', 'mijn-ledenportaal' ); ?>
+                        </label>
+                    </th>
+                    <td style="padding: 8px 0;">
+                        <input type="text"
+                            name="lp_mail_onderwerp_<?php echo esc_attr( $sleutel ); ?>"
+                            id="lp_mail_onderwerp_<?php echo esc_attr( $sleutel ); ?>"
+                            value="<?php echo esc_attr( $huidig_onderwerp ); ?>"
+                            class="large-text"
+                            placeholder="<?php echo esc_attr( $defaults[ $sleutel ]['onderwerp'] ?? '' ); ?>">
+                    </td>
+                </tr>
+                <tr>
+                    <th style="padding: 8px 0; vertical-align: top;">
+                        <?php esc_html_e( 'Inhoud', 'mijn-ledenportaal' ); ?>
+                    </th>
+                    <td style="padding: 8px 0;">
+                        <?php
+                        wp_editor(
+                            $huidig_inhoud,
+                            $editor_id,
+                            [
+                                'textarea_name' => 'lp_mail_inhoud_' . $sleutel,
+                                'media_buttons' => false,
+                                'teeny'         => false,
+                                'textarea_rows' => 10,
+                                'quicktags'     => true,
+                            ]
+                        );
+                        ?>
+                        <?php if ( ! empty( $ph ) ) : ?>
+                        <p class="description" style="margin-top: 6px;">
+                            <?php esc_html_e( 'Beschikbare placeholders:', 'mijn-ledenportaal' ); ?>
+                            <?php foreach ( $ph as $p ) : ?>
+                                <code style="margin: 0 2px; cursor: pointer;" onclick="navigator.clipboard.writeText('<?php echo esc_js( $p ); ?>')" title="Klik om te kopiëren"><?php echo esc_html( $p ); ?></code>
+                            <?php endforeach; ?>
+                        </p>
+                        <?php endif; ?>
+                    </td>
+                </tr>
+            </table>
+            <?php endforeach; ?>
 
             <p style="margin-top: 16px;">
                 <?php submit_button( __( 'Opslaan', 'mijn-ledenportaal' ), 'primary', 'submit', false ); ?>

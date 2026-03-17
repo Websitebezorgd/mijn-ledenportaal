@@ -60,8 +60,10 @@ function lp_verwerk_login() {
     if ( $redirect_naar && wp_validate_redirect( $redirect_naar, false ) ) {
         wp_safe_redirect( $redirect_naar );
     } else {
-        $account_id = get_option( 'lp_account_pagina_id', 0 );
-        wp_safe_redirect( $account_id ? get_permalink( $account_id ) : home_url() );
+        $na_login_id = (int) get_option( 'lp_na_login_pagina_id', 0 );
+        $account_id  = (int) get_option( 'lp_account_pagina_id', 0 );
+        $doel        = $na_login_id ? get_permalink( $na_login_id ) : ( $account_id ? get_permalink( $account_id ) : home_url() );
+        wp_safe_redirect( $doel );
     }
     exit;
 }

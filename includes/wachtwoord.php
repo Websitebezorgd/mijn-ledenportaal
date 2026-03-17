@@ -170,27 +170,17 @@ function lp_render_nieuw_wachtwoord() {
  * E-mail: wachtwoord reset
  */
 function lp_mail_wachtwoord_reset( WP_User $gebruiker, string $reset_url ) {
-    $naam      = $gebruiker->display_name ?: $gebruiker->first_name;
-    $onderwerp = __( 'Wachtwoord opnieuw instellen', 'mijn-ledenportaal' );
-
-    $bericht = '
-<!DOCTYPE html>
-<html lang="nl">
-<head><meta charset="UTF-8"></head>
-<body style="font-family: Arial, sans-serif; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-    <h2 style="color: #0091D5;">' . esc_html__( 'Wachtwoord opnieuw instellen', 'mijn-ledenportaal' ) . '</h2>
-    <p>' . sprintf( esc_html__( 'Hallo %s,', 'mijn-ledenportaal' ), esc_html( $naam ) ) . '</p>
-    <p>' . esc_html__( 'We hebben een verzoek ontvangen om het wachtwoord van je account opnieuw in te stellen.', 'mijn-ledenportaal' ) . '</p>
-    <p>
-        <a href="' . esc_url( $reset_url ) . '" style="display: inline-block; background: #0091D5; color: #fff; padding: 12px 24px; text-decoration: none; border-radius: 4px;">
-            ' . esc_html__( 'Nieuw wachtwoord instellen', 'mijn-ledenportaal' ) . '
-        </a>
-    </p>
-    <p style="color: #666; font-size: 0.9em;">' . esc_html__( 'Deze link is 24 uur geldig. Als je geen wachtwoord-reset hebt aangevraagd, kun je deze e-mail negeren.', 'mijn-ledenportaal' ) . '</p>
-</body>
-</html>';
+    $data = [
+        'gebruiker' => $gebruiker,
+        'extra'     => [ '{{reset_url}}' => $reset_url ],
+    ];
 
     add_filter( 'wp_mail_content_type', fn() => 'text/html' );
-    wp_mail( $gebruiker->user_email, $onderwerp, $bericht );
+    wp_mail(
+        $gebruiker->user_email,
+        lp_mail_onderwerp( 'wachtwoord_reset', $data ),
+        lp_mail_template( 'wachtwoord_reset', $data ),
+        [ 'Content-Type: text/html; charset=UTF-8' ]
+    );
     remove_filter( 'wp_mail_content_type', fn() => 'text/html' );
 }
