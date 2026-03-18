@@ -146,12 +146,11 @@ function lp_verwerk_registratie() {
     if ( strlen( $data['wachtwoord'] ) < 8 )        $fouten[] = __( 'Wachtwoord moet minimaal 8 tekens bevatten.', 'mijn-ledenportaal' );
     if ( $data['wachtwoord'] !== $data['wachtwoord2'] ) $fouten[] = __( 'Wachtwoorden komen niet overeen.', 'mijn-ledenportaal' );
 
-    if ( ! empty( $data['iban'] ) ) {
-        if ( ! lp_valideer_iban( $data['iban'] ) )       $fouten[] = __( 'Voer een geldig IBAN-nummer in.', 'mijn-ledenportaal' );
-        if ( $data['iban'] !== $data['iban2'] )           $fouten[] = __( 'IBAN-nummers komen niet overeen.', 'mijn-ledenportaal' );
-        if ( empty( $data['iban_ten_name_van'] ) )        $fouten[] = __( 'Naam rekeninghouder is verplicht bij opgave van een IBAN.', 'mijn-ledenportaal' );
-        if ( empty( $data['incasso_toestemming'] ) )      $fouten[] = __( 'Je moet toestemming geven voor automatisch incasso.', 'mijn-ledenportaal' );
-    }
+    if ( empty( $data['iban'] ) )                        $fouten[] = __( 'IBAN is verplicht.', 'mijn-ledenportaal' );
+    if ( ! empty( $data['iban'] ) && ! lp_valideer_iban( $data['iban'] ) ) $fouten[] = __( 'Voer een geldig IBAN-nummer in.', 'mijn-ledenportaal' );
+    if ( ! empty( $data['iban'] ) && $data['iban'] !== $data['iban2'] )    $fouten[] = __( 'IBAN-nummers komen niet overeen.', 'mijn-ledenportaal' );
+    if ( empty( $data['iban_ten_name_van'] ) )           $fouten[] = __( 'Naam rekeninghouder is verplicht.', 'mijn-ledenportaal' );
+    if ( empty( $data['incasso_toestemming'] ) )         $fouten[] = __( 'Je moet toestemming geven voor automatisch incasso.', 'mijn-ledenportaal' );
 
     // Saniteer optiekeuzevelden
     if ( ! in_array( $data['geslacht'], array_keys( lp_geslacht_opties() ), true ) )       $data['geslacht'] = '';
