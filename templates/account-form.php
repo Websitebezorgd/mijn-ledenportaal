@@ -318,27 +318,20 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         var knop  = document.getElementById('lp-opslaan-knop');
         if (!form || !knop) return;
 
-        var snapshot = {};
-        form.querySelectorAll('input:not([disabled]), select, textarea').forEach(function(el) {
-            var key = el.name + '||' + el.type;
-            if (el.type === 'checkbox' || el.type === 'radio') {
-                snapshot[key] = el.checked;
-            } else {
-                snapshot[key] = el.value;
-            }
-        });
+        var velden = Array.from(form.querySelectorAll('input:not([disabled]), select, textarea'));
 
-        function isGewijzigd() {
-            var gewijzigd = false;
-            form.querySelectorAll('input:not([disabled]), select, textarea').forEach(function(el) {
-                var key = el.name + '||' + el.type;
-                var huidig = (el.type === 'checkbox' || el.type === 'radio') ? el.checked : el.value;
-                if (snapshot[key] !== huidig) gewijzigd = true;
-            });
-            return gewijzigd;
+        function waarde(el) {
+            if (el.type === 'checkbox' || el.type === 'radio') return el.checked;
+            return el.value.trim();
         }
 
-        form.addEventListener('input', function() { knop.disabled = !isGewijzigd(); });
+        var snapshot = velden.map(waarde);
+
+        function isGewijzigd() {
+            return velden.some(function(el, i) { return waarde(el) !== snapshot[i]; });
+        }
+
+        form.addEventListener('input',  function() { knop.disabled = !isGewijzigd(); });
         form.addEventListener('change', function() { knop.disabled = !isGewijzigd(); });
     })();
     </script>
