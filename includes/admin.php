@@ -302,6 +302,15 @@ add_action( 'admin_menu', function() {
 
     add_submenu_page(
         'ledenportaal',
+        __( 'Export', 'mijn-ledenportaal' ),
+        __( 'Export', 'mijn-ledenportaal' ),
+        'manage_options',
+        'lp-export',
+        'lp_admin_export_pagina'
+    );
+
+    add_submenu_page(
+        'ledenportaal',
         __( 'Ledenbeheer', 'mijn-ledenportaal' ),
         __( 'Ledenbeheer', 'mijn-ledenportaal' ),
         'manage_options',
@@ -1243,5 +1252,237 @@ function lp_admin_formuliervelden_pagina() {
             </p>
         </form>
     </div>
+    <?php
+}
+
+// ──────────────────────────────────────────────────────────────
+// Export
+// ──────────────────────────────────────────────────────────────
+
+/**
+ * Geeft alle exporteerbare velden terug: slug => label
+ */
+function lp_export_velden() {
+    return [
+        // WordPress kern
+        'user_login'      => __( 'Gebruikersnaam', 'mijn-ledenportaal' ),
+        'user_email'      => __( 'E-mailadres', 'mijn-ledenportaal' ),
+        'first_name'      => __( 'Voornaam', 'mijn-ledenportaal' ),
+        'last_name'       => __( 'Achternaam', 'mijn-ledenportaal' ),
+        'user_registered' => __( 'Registratiedatum', 'mijn-ledenportaal' ),
+        'roles'           => __( 'Rol(len)', 'mijn-ledenportaal' ),
+        // Ledenportaal
+        'lp_geslacht'                  => __( 'Geslacht', 'mijn-ledenportaal' ),
+        'lp_geboortedatum'             => __( 'Geboortedatum', 'mijn-ledenportaal' ),
+        'lp_telefoonnummer'            => __( 'Telefoonnummer', 'mijn-ledenportaal' ),
+        'lp_mobiel'                    => __( 'Mobiel', 'mijn-ledenportaal' ),
+        'lp_straatnaam'                => __( 'Straatnaam', 'mijn-ledenportaal' ),
+        'lp_huisnummer'                => __( 'Huisnummer', 'mijn-ledenportaal' ),
+        'lp_huisnummer_toevoeging'     => __( 'Toevoeging', 'mijn-ledenportaal' ),
+        'lp_postcode'                  => __( 'Postcode', 'mijn-ledenportaal' ),
+        'lp_plaats'                    => __( 'Plaats', 'mijn-ledenportaal' ),
+        'lp_land'                      => __( 'Land', 'mijn-ledenportaal' ),
+        'lp_afdeling'                  => __( 'Afdeling', 'mijn-ledenportaal' ),
+        'lp_soort_pensioen'            => __( 'Soort pensioen', 'mijn-ledenportaal' ),
+        'lp_verenigingsfunctie'        => __( 'Verenigingsfunctie', 'mijn-ledenportaal' ),
+        'lp_iban'                      => __( 'IBAN', 'mijn-ledenportaal' ),
+        'lp_iban_ten_name_van'         => __( 'IBAN ten name van', 'mijn-ledenportaal' ),
+        'lp_incasso_toestemming'       => __( 'Incasso toestemming', 'mijn-ledenportaal' ),
+        'lp_incasso_toestemming_datum' => __( 'Incasso toestemming datum', 'mijn-ledenportaal' ),
+        'lp_account_status'            => __( 'Account status', 'mijn-ledenportaal' ),
+        'lp_account_gewijzigd'         => __( 'Laatste wijziging', 'mijn-ledenportaal' ),
+    ];
+}
+
+/**
+ * Exporteer gebruikers naar CSV (aangeroepen via admin_init)
+ */
+function lp_export_uitvoeren() {
+    if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Geen toegang.' );
+    check_admin_referer( 'lp_export' );
+
+    $alle_velden    = lp_export_velden();
+    $gekozen_velden = isset( $_POST['lp_export_velden'] ) ? (array) $_POST['lp_export_velden'] : array_keys( $alle_velden );
+    $gekozen_velden = array_intersect( $gekozen_velden, array_keys( $alle_velden ) );
+    $gekozen_rollen = isset( $_POST['lp_export_rollen'] ) ? array_map( 'sanitize_text_field', (array) $_POST['lp_export_rollen'] ) : [];
+    $datum_type     = sanitize_text_field( $_POST['lp_export_datum_type'] ?? '' );
+    $datum_van      = sanitize_text_field( $_POST['lp_export_datum_van'] ?? '' );
+    $datum_tot      = sanitize_text_field( $_POST['lp_export_datum_tot'] ?? '' );
+
+    // Gebruikers ophalen
+    $args = [ 'number' => -1, 'orderby' => 'ID' ];
+    if ( ! empty( $gekozen_rollen ) ) {
+        $args['role__in'] = $gekozen_rollen;
+    }
+
+    // Datum filter op registratiedatum
+    if ( $datum_type === 'geregistreerd' && ( $datum_van || $datum_tot ) ) {
+        $args['date_query'] = [];
+        if ( $datum_van ) $args['date_query']['after']     = $datum_van;
+        if ( $datum_tot ) $args['date_query']['before']    = $datum_tot . ' 23:59:59';
+        $args['date_query']['inclusive'] = true;
+    }
+
+    $gebruikers = get_users( $args );
+
+    // Filter op lp_account_gewijzigd als datum_type = gewijzigd
+    if ( $datum_type === 'gewijzigd' && ( $datum_van || $datum_tot ) ) {
+        $van_ts  = $datum_van ? strtotime( $datum_van ) : 0;
+        $tot_ts  = $datum_tot ? strtotime( $datum_tot . ' 23:59:59' ) : PHP_INT_MAX;
+        $gebruikers = array_filter( $gebruikers, function( $u ) use ( $van_ts, $tot_ts ) {
+            $gewijzigd = get_user_meta( $u->ID, 'lp_account_gewijzigd', true );
+            if ( ! $gewijzigd ) return false;
+            $ts = strtotime( $gewijzigd );
+            return $ts >= $van_ts && $ts <= $tot_ts;
+        } );
+    }
+
+    // CSV output
+    $bestandsnaam = 'ledenportaal-export-' . date( 'Y-m-d' ) . '.csv';
+    header( 'Content-Type: text/csv; charset=utf-8' );
+    header( 'Content-Disposition: attachment; filename="' . $bestandsnaam . '"' );
+    header( 'Pragma: no-cache' );
+    header( 'Expires: 0' );
+
+    $output = fopen( 'php://output', 'w' );
+    fprintf( $output, chr( 0xEF ) . chr( 0xBB ) . chr( 0xBF ) ); // UTF-8 BOM
+
+    // Kopteksten
+    $koppen = array_map( fn( $slug ) => $alle_velden[ $slug ], $gekozen_velden );
+    fputcsv( $output, $koppen, ';' );
+
+    // Rijen
+    $kern_velden = [ 'user_login', 'user_email', 'first_name', 'last_name', 'user_registered', 'roles' ];
+    foreach ( $gebruikers as $gebruiker ) {
+        $rij = [];
+        foreach ( $gekozen_velden as $veld ) {
+            if ( $veld === 'roles' ) {
+                $rij[] = implode( ', ', $gebruiker->roles );
+            } elseif ( in_array( $veld, $kern_velden, true ) ) {
+                $rij[] = $gebruiker->$veld ?? '';
+            } else {
+                $waarde = get_user_meta( $gebruiker->ID, $veld, true );
+                $rij[]  = is_array( $waarde ) ? implode( ', ', $waarde ) : (string) $waarde;
+            }
+        }
+        fputcsv( $output, $rij, ';' );
+    }
+
+    fclose( $output );
+    exit;
+}
+
+// Vroege handler zodat er geen HTML output is voor de headers
+add_action( 'admin_init', function() {
+    if (
+        ! is_admin() ||
+        ( $_GET['page'] ?? '' ) !== 'lp-export' ||
+        ! isset( $_POST['lp_export_submit'] )
+    ) return;
+    lp_export_uitvoeren();
+} );
+
+/**
+ * Admin pagina: Export
+ */
+function lp_admin_export_pagina() {
+    if ( ! current_user_can( 'manage_options' ) ) return;
+
+    $alle_velden = lp_export_velden();
+    $alle_rollen = get_editable_roles();
+    ?>
+    <div class="wrap">
+        <h1><?php esc_html_e( 'Ledenportaal — Export', 'mijn-ledenportaal' ); ?></h1>
+
+        <form method="post">
+            <?php wp_nonce_field( 'lp_export' ); ?>
+
+            <div style="display: flex; gap: 32px; align-items: flex-start; margin-top: 16px; flex-wrap: wrap;">
+
+                <!-- Rollen -->
+                <div>
+                    <h3 style="margin-top: 0;"><?php esc_html_e( 'Rollen filteren', 'mijn-ledenportaal' ); ?></h3>
+                    <p style="color: #646970; font-size: 13px; margin-top: -8px;"><?php esc_html_e( 'Niets aangevinkt = alle gebruikers.', 'mijn-ledenportaal' ); ?></p>
+                    <ul style="margin: 0; padding: 0; list-style: none;">
+                        <?php foreach ( $alle_rollen as $rol_slug => $rol ) : ?>
+                        <li>
+                            <label>
+                                <input type="checkbox" name="lp_export_rollen[]" value="<?php echo esc_attr( $rol_slug ); ?>">
+                                <?php echo esc_html( translate_user_role( $rol['name'] ) ); ?>
+                                <span style="color: #888; font-size: 12px;">(<?php echo esc_html( $rol_slug ); ?>)</span>
+                            </label>
+                        </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+
+                <!-- Datumfilter -->
+                <div>
+                    <h3 style="margin-top: 0;"><?php esc_html_e( 'Datumfilter', 'mijn-ledenportaal' ); ?></h3>
+                    <p style="color: #646970; font-size: 13px; margin-top: -8px;"><?php esc_html_e( 'Leeg laten = geen filter.', 'mijn-ledenportaal' ); ?></p>
+
+                    <div style="margin-bottom: 10px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 4px;"><?php esc_html_e( 'Filteren op', 'mijn-ledenportaal' ); ?></label>
+                        <select name="lp_export_datum_type">
+                            <option value=""><?php esc_html_e( '— geen datumfilter —', 'mijn-ledenportaal' ); ?></option>
+                            <option value="geregistreerd"><?php esc_html_e( 'Registratiedatum', 'mijn-ledenportaal' ); ?></option>
+                            <option value="gewijzigd"><?php esc_html_e( 'Laatste wijziging (lp_account_gewijzigd)', 'mijn-ledenportaal' ); ?></option>
+                        </select>
+                    </div>
+
+                    <div style="display: flex; gap: 12px; align-items: center;">
+                        <div>
+                            <label style="display: block; font-size: 12px; color: #646970;"><?php esc_html_e( 'Van', 'mijn-ledenportaal' ); ?></label>
+                            <input type="date" name="lp_export_datum_van">
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; color: #646970;"><?php esc_html_e( 'Tot en met', 'mijn-ledenportaal' ); ?></label>
+                            <input type="date" name="lp_export_datum_tot">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Velden -->
+                <div>
+                    <h3 style="margin-top: 0;">
+                        <?php esc_html_e( 'Velden', 'mijn-ledenportaal' ); ?>
+                        <span style="font-weight: normal; font-size: 13px; margin-left: 8px;">
+                            <a href="#" id="lp-alles-aan" style="text-decoration: none;"><?php esc_html_e( 'alles aan', 'mijn-ledenportaal' ); ?></a>
+                            &nbsp;·&nbsp;
+                            <a href="#" id="lp-alles-uit" style="text-decoration: none;"><?php esc_html_e( 'alles uit', 'mijn-ledenportaal' ); ?></a>
+                        </span>
+                    </h3>
+                    <ul style="margin: 0; padding: 0; list-style: none; column-count: 2; column-gap: 24px;">
+                        <?php foreach ( $alle_velden as $slug => $label ) : ?>
+                        <li>
+                            <label>
+                                <input type="checkbox" class="lp-veld-check" name="lp_export_velden[]" value="<?php echo esc_attr( $slug ); ?>" checked>
+                                <?php echo esc_html( $label ); ?>
+                            </label>
+                        </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+
+            </div>
+
+            <p style="margin-top: 24px;">
+                <button type="submit" name="lp_export_submit" class="button button-primary">
+                    <?php esc_html_e( 'CSV downloaden', 'mijn-ledenportaal' ); ?>
+                </button>
+            </p>
+        </form>
+    </div>
+
+    <script>
+    document.getElementById('lp-alles-aan').addEventListener('click', function(e) {
+        e.preventDefault();
+        document.querySelectorAll('.lp-veld-check').forEach(function(c) { c.checked = true; });
+    });
+    document.getElementById('lp-alles-uit').addEventListener('click', function(e) {
+        e.preventDefault();
+        document.querySelectorAll('.lp-veld-check').forEach(function(c) { c.checked = false; });
+    });
+    </script>
     <?php
 }
