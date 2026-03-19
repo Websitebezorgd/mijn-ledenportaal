@@ -1553,8 +1553,19 @@ function lp_import_uitvoeren() {
         rewind( $handle );
     }
 
+    // Scheidingsteken automatisch detecteren op basis van eerste rij
+    $eerste_rij = fgets( $handle );
+    if ( $eerste_rij === false ) {
+        fclose( $handle );
+        $resultaten['fouten'][] = __( 'CSV-bestand is leeg of ongeldig.', 'mijn-ledenportaal' );
+        return $resultaten;
+    }
+    $scheidingsteken = substr_count( $eerste_rij, ';' ) >= substr_count( $eerste_rij, ',' ) ? ';' : ',';
+    // Terug naar begin van de rij
+    fseek( $handle, -strlen( $eerste_rij ), SEEK_CUR );
+
     // Koptekstrij lezen
-    $header = fgetcsv( $handle, 0, ';' );
+    $header = fgetcsv( $handle, 0, $scheidingsteken );
     if ( ! $header ) {
         fclose( $handle );
         $resultaten['fouten'][] = __( 'CSV-bestand is leeg of ongeldig.', 'mijn-ledenportaal' );
@@ -1590,7 +1601,7 @@ function lp_import_uitvoeren() {
     ];
 
     $rij_nummer = 1;
-    while ( ( $rij = fgetcsv( $handle, 0, ';' ) ) !== false ) {
+    while ( ( $rij = fgetcsv( $handle, 0, $scheidingsteken ) ) !== false ) {
         $rij_nummer++;
 
         // Rij omzetten naar veld => waarde
