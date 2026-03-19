@@ -1452,10 +1452,21 @@ function lp_admin_import_pagina() {
                     </td>
                 </tr>
                 <tr>
+                    <th scope="row"><label for="lp_import_mail"><?php esc_html_e( 'Mail voor nieuwe gebruikers', 'mijn-ledenportaal' ); ?></label></th>
+                    <td>
+                        <select name="lp_import_mail" id="lp_import_mail">
+                            <option value=""><?php esc_html_e( 'Geen mail versturen', 'mijn-ledenportaal' ); ?></option>
+                            <option value="registratie"><?php esc_html_e( 'Registratiebevestiging sturen', 'mijn-ledenportaal' ); ?></option>
+                            <option value="wachtwoord_instellen" selected><?php esc_html_e( 'Link om wachtwoord in te stellen sturen', 'mijn-ledenportaal' ); ?></option>
+                        </select>
+                        <p class="description"><?php esc_html_e( 'Bij "wachtwoord instellen" wordt het wachtwoordveld genegeerd en krijgt de gebruiker een e-mail met een persoonlijke link.', 'mijn-ledenportaal' ); ?></p>
+                    </td>
+                </tr>
+                <tr id="lp-import-ww-rij">
                     <th scope="row"><label for="lp_import_wachtwoord"><?php esc_html_e( 'Standaard wachtwoord', 'mijn-ledenportaal' ); ?></label></th>
                     <td>
                         <input type="text" name="lp_import_wachtwoord" id="lp_import_wachtwoord" value="" class="regular-text" placeholder="<?php esc_attr_e( 'Leeg = automatisch genereren', 'mijn-ledenportaal' ); ?>">
-                        <p class="description"><?php esc_html_e( 'Wachtwoord voor nieuw aangemaakte gebruikers. Leeg laten voor een automatisch gegenereerd wachtwoord.', 'mijn-ledenportaal' ); ?></p>
+                        <p class="description"><?php esc_html_e( 'Alleen van toepassing als er geen mail wordt gestuurd of bij registratiebevestiging.', 'mijn-ledenportaal' ); ?></p>
                     </td>
                 </tr>
                 <tr>
@@ -1500,6 +1511,17 @@ function lp_admin_import_pagina() {
             </tbody>
         </table>
     </div>
+    <script>
+    (function() {
+        var mailSelect = document.getElementById('lp_import_mail');
+        var wwRij      = document.getElementById('lp-import-ww-rij');
+        function toggleWw() {
+            wwRij.style.display = mailSelect.value === 'wachtwoord_instellen' ? 'none' : '';
+        }
+        mailSelect.addEventListener('change', toggleWw);
+        toggleWw();
+    })();
+    </script>
     <?php
 }
 
@@ -1554,7 +1576,8 @@ function lp_import_uitvoeren() {
     }
 
     $toevoegen        = ! empty( $_POST['lp_import_toevoegen'] );
-    $standaard_ww     = sanitize_text_field( $_POST['lp_import_wachtwoord'] ?? '' );
+    $mail_optie       = sanitize_key( $_POST['lp_import_mail'] ?? '' );
+    $standaard_ww     = $mail_optie === 'wachtwoord_instellen' ? '' : sanitize_text_field( $_POST['lp_import_wachtwoord'] ?? '' );
     $standaard_status = sanitize_text_field( $_POST['lp_import_status'] ?? '' );
     $geldig_statussen = [ 'pending', 'approved', 'rejected' ];
 
@@ -1634,6 +1657,14 @@ function lp_import_uitvoeren() {
                 $data['lp_account_status'] = 'pending';
             }
             lp_import_meta_opslaan( $nieuw_id, $data, $meta_velden, $standaard_status, $geldig_statussen );
+
+            // Mail versturen
+            if ( $mail_optie === 'registratie' ) {
+                do_action( 'lp_na_registratie', $nieuw_id );
+            } elseif ( $mail_optie === 'wachtwoord_instellen' ) {
+                lp_import_stuur_wachtwoord_mail( $nieuw_id );
+            }
+
             $resultaten['toegevoegd']++;
 
         } else {
@@ -1676,6 +1707,31 @@ function lp_import_meta_opslaan( $user_id, $data, $meta_velden, $standaard_statu
     } elseif ( isset( $data['lp_account_status'] ) && in_array( $data['lp_account_status'], $geldig_statussen, true ) ) {
         update_user_meta( $user_id, 'lp_account_status', $data['lp_account_status'] );
     }
+}
+
+/**
+ * Stuur een wachtwoord-instellen mail naar een nieuw geïmporteerde gebruiker
+ */
+function lp_import_stuur_wachtwoord_mail( $user_id ) {
+    $user = get_userdata( $user_id );
+    if ( ! $user ) return;
+
+    $reset_key = get_password_reset_key( $user );
+    if ( is_wp_error( $reset_key ) ) return;
+
+    $reset_url = network_site_url( 'wp-login.php?action=rp&key=' . $reset_key . '&login=' . rawurlencode( $user->user_login ), 'login' );
+    $site_naam = get_bloginfo( 'name' );
+
+    $onderwerp = sprintf( __( 'Stel je wachtwoord in voor %s', 'mijn-ledenportaal' ), $site_naam );
+    $bericht   = sprintf(
+        /* translators: 1: voornaam, 2: sitenaam, 3: reset-url */
+        __( "Hallo %1\$s,\n\nJe account op %2\$s is aangemaakt. Klik op de onderstaande link om je wachtwoord in te stellen en in te loggen:\n\n%3\$s\n\nDeze link is 24 uur geldig.\n\nMet vriendelijke groet,\n%2\$s", 'mijn-ledenportaal' ),
+        $user->first_name ?: $user->user_login,
+        $site_naam,
+        $reset_url
+    );
+
+    wp_mail( $user->user_email, $onderwerp, $bericht );
 }
 
 /**
