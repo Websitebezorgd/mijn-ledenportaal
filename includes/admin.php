@@ -311,6 +311,15 @@ add_action( 'admin_menu', function() {
 
     add_submenu_page(
         'ledenportaal',
+        __( 'Import', 'mijn-ledenportaal' ),
+        __( 'Import', 'mijn-ledenportaal' ),
+        'manage_options',
+        'lp-import',
+        'lp_admin_import_pagina'
+    );
+
+    add_submenu_page(
+        'ledenportaal',
         __( 'Ledenbeheer', 'mijn-ledenportaal' ),
         __( 'Ledenbeheer', 'mijn-ledenportaal' ),
         'manage_options',
@@ -1381,6 +1390,293 @@ add_action( 'admin_init', function() {
     ) return;
     lp_export_uitvoeren();
 } );
+
+/**
+ * Admin pagina: Import
+ */
+function lp_admin_import_pagina() {
+    if ( ! current_user_can( 'manage_options' ) ) return;
+
+    $resultaten = null;
+
+    if ( isset( $_POST['lp_import_submit'] ) ) {
+        check_admin_referer( 'lp_import' );
+        $resultaten = lp_import_uitvoeren();
+    }
+
+    $alle_velden = lp_export_velden();
+    ?>
+    <div class="wrap">
+        <h1><?php esc_html_e( 'Ledenportaal — Import', 'mijn-ledenportaal' ); ?></h1>
+
+        <?php if ( $resultaten !== null ) : ?>
+            <div class="notice notice-<?php echo empty( $resultaten['fouten'] ) ? 'success' : 'warning'; ?> is-dismissible">
+                <p>
+                    <?php printf(
+                        esc_html__( 'Import voltooid: %1$d toegevoegd, %2$d bijgewerkt, %3$d overgeslagen.', 'mijn-ledenportaal' ),
+                        (int) $resultaten['toegevoegd'],
+                        (int) $resultaten['bijgewerkt'],
+                        (int) $resultaten['overgeslagen']
+                    ); ?>
+                </p>
+                <?php if ( ! empty( $resultaten['fouten'] ) ) : ?>
+                    <ul style="margin: 4px 0 8px 16px; list-style: disc;">
+                        <?php foreach ( $resultaten['fouten'] as $fout ) : ?>
+                            <li><?php echo esc_html( $fout ); ?></li>
+                        <?php endforeach; ?>
+                    </ul>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
+
+        <p><?php esc_html_e( 'Upload een CSV-bestand in hetzelfde formaat als de export (puntkomma-gescheiden, UTF-8). Bestaande gebruikers worden herkend op e-mailadres of gebruikersnaam en bijgewerkt. Nieuwe gebruikers worden aangemaakt als die optie is ingeschakeld.', 'mijn-ledenportaal' ); ?></p>
+
+        <form method="post" enctype="multipart/form-data">
+            <?php wp_nonce_field( 'lp_import' ); ?>
+
+            <table class="form-table">
+                <tr>
+                    <th scope="row"><label for="lp_import_bestand"><?php esc_html_e( 'CSV-bestand', 'mijn-ledenportaal' ); ?></label></th>
+                    <td>
+                        <input type="file" name="lp_import_bestand" id="lp_import_bestand" accept=".csv" required>
+                        <p class="description"><?php esc_html_e( 'Gebruik de exportfunctie om een voorbeeld-CSV te downloaden als sjabloon.', 'mijn-ledenportaal' ); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php esc_html_e( 'Nieuwe gebruikers', 'mijn-ledenportaal' ); ?></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" name="lp_import_toevoegen" value="1" checked>
+                            <?php esc_html_e( 'Nieuwe gebruikers aanmaken als ze nog niet bestaan', 'mijn-ledenportaal' ); ?>
+                        </label>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="lp_import_wachtwoord"><?php esc_html_e( 'Standaard wachtwoord', 'mijn-ledenportaal' ); ?></label></th>
+                    <td>
+                        <input type="text" name="lp_import_wachtwoord" id="lp_import_wachtwoord" value="" class="regular-text" placeholder="<?php esc_attr_e( 'Leeg = automatisch genereren', 'mijn-ledenportaal' ); ?>">
+                        <p class="description"><?php esc_html_e( 'Wachtwoord voor nieuw aangemaakte gebruikers. Leeg laten voor een automatisch gegenereerd wachtwoord.', 'mijn-ledenportaal' ); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="lp_import_status"><?php esc_html_e( 'Accountstatus overschrijven', 'mijn-ledenportaal' ); ?></label></th>
+                    <td>
+                        <select name="lp_import_status" id="lp_import_status">
+                            <option value=""><?php esc_html_e( '— Gebruik waarde uit CSV —', 'mijn-ledenportaal' ); ?></option>
+                            <option value="pending"><?php esc_html_e( 'In afwachting', 'mijn-ledenportaal' ); ?></option>
+                            <option value="approved"><?php esc_html_e( 'Goedgekeurd', 'mijn-ledenportaal' ); ?></option>
+                            <option value="rejected"><?php esc_html_e( 'Afgewezen', 'mijn-ledenportaal' ); ?></option>
+                        </select>
+                        <p class="description"><?php esc_html_e( 'Als je hier een waarde kiest, wordt die voor alle geïmporteerde rijen gebruikt (ook bij bestaande gebruikers).', 'mijn-ledenportaal' ); ?></p>
+                    </td>
+                </tr>
+            </table>
+
+            <p style="margin-top: 16px;">
+                <button type="submit" name="lp_import_submit" class="button button-primary">
+                    <?php esc_html_e( 'CSV importeren', 'mijn-ledenportaal' ); ?>
+                </button>
+            </p>
+        </form>
+
+        <hr style="margin: 32px 0;">
+
+        <h2><?php esc_html_e( 'Beschikbare kolomnamen', 'mijn-ledenportaal' ); ?></h2>
+        <p><?php esc_html_e( 'De eerste rij van het CSV-bestand moet kolomnamen bevatten. Zowel de Nederlandse labels (zoals in de export) als de interne sleutels worden herkend.', 'mijn-ledenportaal' ); ?></p>
+        <table class="wp-list-table widefat fixed striped" style="max-width: 520px; margin-top: 12px;">
+            <thead>
+                <tr>
+                    <th><?php esc_html_e( 'Kolomlabel (export)', 'mijn-ledenportaal' ); ?></th>
+                    <th><?php esc_html_e( 'Interne sleutel', 'mijn-ledenportaal' ); ?></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ( $alle_velden as $slug => $label ) : ?>
+                <tr>
+                    <td><?php echo esc_html( $label ); ?></td>
+                    <td><code><?php echo esc_html( $slug ); ?></code></td>
+                </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+    <?php
+}
+
+/**
+ * Verwerk CSV-import en geef resultaten terug
+ */
+function lp_import_uitvoeren() {
+    $resultaten = [
+        'toegevoegd'   => 0,
+        'bijgewerkt'   => 0,
+        'overgeslagen' => 0,
+        'fouten'       => [],
+    ];
+
+    if ( empty( $_FILES['lp_import_bestand']['tmp_name'] ) || (int) $_FILES['lp_import_bestand']['error'] !== UPLOAD_ERR_OK ) {
+        $resultaten['fouten'][] = __( 'Geen geldig bestand geüpload.', 'mijn-ledenportaal' );
+        return $resultaten;
+    }
+
+    $handle = fopen( $_FILES['lp_import_bestand']['tmp_name'], 'r' );
+    if ( ! $handle ) {
+        $resultaten['fouten'][] = __( 'Kon het bestand niet openen.', 'mijn-ledenportaal' );
+        return $resultaten;
+    }
+
+    // UTF-8 BOM overslaan
+    $bom = fread( $handle, 3 );
+    if ( $bom !== "\xEF\xBB\xBF" ) {
+        rewind( $handle );
+    }
+
+    // Koptekstrij lezen
+    $header = fgetcsv( $handle, 0, ';' );
+    if ( ! $header ) {
+        fclose( $handle );
+        $resultaten['fouten'][] = __( 'CSV-bestand is leeg of ongeldig.', 'mijn-ledenportaal' );
+        return $resultaten;
+    }
+
+    // Labels én slugs worden beide herkend als kolomnaam
+    $alle_velden     = lp_export_velden();
+    $label_naar_slug = array_flip( $alle_velden );
+
+    $kolom_map = []; // index => veld-slug
+    foreach ( $header as $i => $kolom ) {
+        $kolom = trim( $kolom );
+        if ( isset( $label_naar_slug[ $kolom ] ) ) {
+            $kolom_map[ $i ] = $label_naar_slug[ $kolom ];
+        } elseif ( isset( $alle_velden[ $kolom ] ) ) {
+            $kolom_map[ $i ] = $kolom;
+        }
+    }
+
+    $toevoegen        = ! empty( $_POST['lp_import_toevoegen'] );
+    $standaard_ww     = sanitize_text_field( $_POST['lp_import_wachtwoord'] ?? '' );
+    $standaard_status = sanitize_text_field( $_POST['lp_import_status'] ?? '' );
+    $geldig_statussen = [ 'pending', 'approved', 'rejected' ];
+
+    $meta_velden = [
+        'lp_geslacht', 'lp_geboortedatum', 'lp_telefoonnummer', 'lp_mobiel',
+        'lp_straatnaam', 'lp_huisnummer', 'lp_huisnummer_toevoeging', 'lp_postcode',
+        'lp_plaats', 'lp_land', 'lp_afdeling', 'lp_soort_pensioen', 'lp_verenigingsfunctie',
+        'lp_iban', 'lp_iban_ten_name_van', 'lp_incasso_toestemming',
+        'lp_incasso_toestemming_datum', 'lp_account_status', 'lp_account_gewijzigd',
+    ];
+
+    $rij_nummer = 1;
+    while ( ( $rij = fgetcsv( $handle, 0, ';' ) ) !== false ) {
+        $rij_nummer++;
+
+        // Rij omzetten naar veld => waarde
+        $data = [];
+        foreach ( $kolom_map as $i => $slug ) {
+            $data[ $slug ] = isset( $rij[ $i ] ) ? trim( $rij[ $i ] ) : '';
+        }
+
+        // Gebruiker opzoeken op e-mail of gebruikersnaam
+        $gebruiker_id = null;
+        if ( ! empty( $data['user_email'] ) ) {
+            $gebruiker = get_user_by( 'email', $data['user_email'] );
+            if ( $gebruiker ) $gebruiker_id = $gebruiker->ID;
+        }
+        if ( ! $gebruiker_id && ! empty( $data['user_login'] ) ) {
+            $gebruiker = get_user_by( 'login', $data['user_login'] );
+            if ( $gebruiker ) $gebruiker_id = $gebruiker->ID;
+        }
+
+        if ( $gebruiker_id ) {
+            // Bestaande gebruiker bijwerken
+            $update_args = [ 'ID' => $gebruiker_id ];
+            if ( ! empty( $data['user_email'] ) ) $update_args['user_email'] = sanitize_email( $data['user_email'] );
+            if ( isset( $data['first_name'] ) )   $update_args['first_name'] = sanitize_text_field( $data['first_name'] );
+            if ( isset( $data['last_name'] ) )     $update_args['last_name']  = sanitize_text_field( $data['last_name'] );
+
+            $result = wp_update_user( $update_args );
+            if ( is_wp_error( $result ) ) {
+                $resultaten['fouten'][]  = sprintf( __( 'Rij %1$d: %2$s', 'mijn-ledenportaal' ), $rij_nummer, $result->get_error_message() );
+                $resultaten['overgeslagen']++;
+                continue;
+            }
+
+            lp_import_meta_opslaan( $gebruiker_id, $data, $meta_velden, $standaard_status, $geldig_statussen );
+            $resultaten['bijgewerkt']++;
+
+        } elseif ( $toevoegen ) {
+            // Nieuwe gebruiker aanmaken
+            if ( empty( $data['user_email'] ) && empty( $data['user_login'] ) ) {
+                $resultaten['fouten'][]  = sprintf( __( 'Rij %d: geen e-mailadres of gebruikersnaam opgegeven.', 'mijn-ledenportaal' ), $rij_nummer );
+                $resultaten['overgeslagen']++;
+                continue;
+            }
+
+            $login     = ! empty( $data['user_login'] ) ? sanitize_user( $data['user_login'] ) : sanitize_user( $data['user_email'] );
+            $user_args = [
+                'user_login' => $login,
+                'user_email' => sanitize_email( $data['user_email'] ?? '' ),
+                'first_name' => sanitize_text_field( $data['first_name'] ?? '' ),
+                'last_name'  => sanitize_text_field( $data['last_name'] ?? '' ),
+                'user_pass'  => ! empty( $standaard_ww ) ? $standaard_ww : wp_generate_password( 16 ),
+                'role'       => get_option( 'lp_registratie_rol', 'subscriber' ),
+            ];
+
+            $nieuw_id = wp_insert_user( $user_args );
+            if ( is_wp_error( $nieuw_id ) ) {
+                $resultaten['fouten'][]  = sprintf( __( 'Rij %1$d: %2$s', 'mijn-ledenportaal' ), $rij_nummer, $nieuw_id->get_error_message() );
+                $resultaten['overgeslagen']++;
+                continue;
+            }
+
+            // Als er geen status in de CSV staat, gebruik pending als fallback
+            if ( empty( $data['lp_account_status'] ) && empty( $standaard_status ) ) {
+                $data['lp_account_status'] = 'pending';
+            }
+            lp_import_meta_opslaan( $nieuw_id, $data, $meta_velden, $standaard_status, $geldig_statussen );
+            $resultaten['toegevoegd']++;
+
+        } else {
+            $resultaten['overgeslagen']++;
+        }
+    }
+
+    fclose( $handle );
+    return $resultaten;
+}
+
+/**
+ * Sla meta-velden op voor een gebruiker tijdens import
+ */
+function lp_import_meta_opslaan( $user_id, $data, $meta_velden, $standaard_status, $geldig_statussen ) {
+    foreach ( $meta_velden as $slug ) {
+        if ( ! isset( $data[ $slug ] ) ) continue;
+        $waarde = $data[ $slug ];
+
+        if ( $slug === 'lp_account_status' ) {
+            // Wordt apart afgehandeld na de loop
+            continue;
+        }
+
+        if ( $slug === 'lp_verenigingsfunctie' ) {
+            // Multi-value: opgeslagen als meerdere meta-rijen
+            delete_user_meta( $user_id, 'lp_verenigingsfunctie' );
+            $functies = array_filter( array_map( 'trim', explode( ',', $waarde ) ) );
+            foreach ( $functies as $functie ) {
+                add_user_meta( $user_id, 'lp_verenigingsfunctie', sanitize_text_field( $functie ) );
+            }
+        } else {
+            update_user_meta( $user_id, $slug, sanitize_text_field( $waarde ) );
+        }
+    }
+
+    // Accountstatus: standaard_status heeft voorrang op CSV-waarde
+    if ( $standaard_status && in_array( $standaard_status, $geldig_statussen, true ) ) {
+        update_user_meta( $user_id, 'lp_account_status', $standaard_status );
+    } elseif ( isset( $data['lp_account_status'] ) && in_array( $data['lp_account_status'], $geldig_statussen, true ) ) {
+        update_user_meta( $user_id, 'lp_account_status', $data['lp_account_status'] );
+    }
+}
 
 /**
  * Admin pagina: Export

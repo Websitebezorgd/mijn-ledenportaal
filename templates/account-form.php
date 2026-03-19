@@ -222,22 +222,30 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             </div>
 
             <div class="lp-form-groep">
-                <label class="lp-label" for="lp-iban2"><?php esc_html_e( 'IBAN bevestigen', 'mijn-ledenportaal' ); ?></label>
+                <label class="lp-label" for="lp-iban2">
+                    <?php esc_html_e( 'IBAN bevestigen', 'mijn-ledenportaal' ); ?>
+                    <span class="lp-verplicht">*</span>
+                </label>
                 <input class="lp-input" type="text" id="lp-iban2" name="iban2"
                     value=""
                     placeholder="<?php esc_attr_e( 'Herhaal IBAN om te wijzigen', 'mijn-ledenportaal' ); ?>"
                     autocomplete="off"
                     style="text-transform: uppercase;">
+                <p class="lp-veld-hint"><?php esc_html_e( 'Vereist als je het IBAN wijzigt.', 'mijn-ledenportaal' ); ?></p>
                 <p class="lp-iban-match-melding" style="display: none; color: #d9534f;">
                     <?php esc_html_e( 'IBAN-nummers komen niet overeen.', 'mijn-ledenportaal' ); ?>
                 </p>
             </div>
 
             <div class="lp-form-groep">
-                <label class="lp-label" for="lp-iban-ten-name-van"><?php esc_html_e( 'Ten name van', 'mijn-ledenportaal' ); ?></label>
+                <label class="lp-label" for="lp-iban-ten-name-van">
+                    <?php esc_html_e( 'Ten name van', 'mijn-ledenportaal' ); ?>
+                    <span class="lp-verplicht">*</span>
+                </label>
                 <input class="lp-input" type="text" id="lp-iban-ten-name-van" name="iban_ten_name_van"
                     value="<?php echo esc_attr( $meta['iban_ten_name_van'] ); ?>"
                     autocomplete="off">
+                <p class="lp-veld-hint"><?php esc_html_e( 'Vereist bij opgave van een IBAN.', 'mijn-ledenportaal' ); ?></p>
             </div>
 
             <div class="lp-form-groep">
@@ -245,7 +253,9 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                     <input type="checkbox" name="incasso_toestemming" value="1"
                         <?php checked( $meta['incasso_toestemming'], '1' ); ?>>
                     <?php esc_html_e( 'Ik geef toestemming voor automatisch incasso van de contributie van bovenstaande rekening.', 'mijn-ledenportaal' ); ?>
+                    <span class="lp-verplicht">*</span>
                 </label>
+                <p class="lp-veld-hint"><?php esc_html_e( 'Vereist bij opgave van een IBAN.', 'mijn-ledenportaal' ); ?></p>
             </div>
         </div>
 
