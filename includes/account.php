@@ -117,11 +117,11 @@ function lp_verwerk_account() {
     update_user_meta( $user_id, 'lp_iban_ten_name_van', $iban_ten_name_van );
     update_user_meta( $user_id, 'lp_incasso_toestemming', $incasso_toestemming );
     if ( $incasso_toestemming === '1' && $iban !== $huidig_iban ) {
-        update_user_meta( $user_id, 'lp_incasso_toestemming_datum', current_time( 'Y-m-d H:i:s' ) );
+        update_user_meta( $user_id, 'lp_incasso_toestemming_datum', current_time( 'Y-m-d H:i:s', true ) );
     }
 
-    // Sla "laatst gewijzigd" timestamp op
-    update_user_meta( $user_id, 'lp_account_gewijzigd', current_time( 'Y-m-d H:i:s' ) );
+    // Sla "laatst gewijzigd" timestamp op (altijd als UTC opslaan)
+    update_user_meta( $user_id, 'lp_account_gewijzigd', current_time( 'Y-m-d H:i:s', true ) );
 
     // Stuur de notificatiemail ná de redirect via shutdown, zodat de browser niet hoeft te wachten.
     $user_id_snapshot = $user_id;

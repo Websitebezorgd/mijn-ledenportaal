@@ -245,9 +245,9 @@ function lp_sla_profiel_velden_op( $user_id ) {
     $huidig_incasso = get_user_meta( $user_id, 'lp_incasso_toestemming', true );
     update_user_meta( $user_id, 'lp_incasso_toestemming', $incasso );
     if ( $incasso === '1' && $huidig_incasso !== '1' ) {
-        update_user_meta( $user_id, 'lp_incasso_toestemming_datum', current_time( 'Y-m-d H:i:s' ) );
+        update_user_meta( $user_id, 'lp_incasso_toestemming_datum', current_time( 'Y-m-d H:i:s', true ) );
     }
-    update_user_meta( $user_id, 'lp_account_gewijzigd', current_time( 'Y-m-d H:i:s' ) );
+    update_user_meta( $user_id, 'lp_account_gewijzigd', current_time( 'Y-m-d H:i:s', true ) );
 
     // Trigger mail als status veranderd is
     if ( $nieuwe_status !== $oude_status ) {
