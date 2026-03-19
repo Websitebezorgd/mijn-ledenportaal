@@ -75,8 +75,10 @@ add_action( 'template_redirect', function() {
     if ( ! is_user_logged_in() ) return;
     $login_id = get_option( 'lp_login_pagina_id', 0 );
     if ( $login_id && is_page( $login_id ) ) {
-        $account_id = get_option( 'lp_account_pagina_id', 0 );
-        wp_safe_redirect( $account_id ? get_permalink( $account_id ) : home_url() );
+        $na_login_id = (int) get_option( 'lp_na_login_pagina_id', 0 );
+        $account_id  = (int) get_option( 'lp_account_pagina_id', 0 );
+        $doel        = $na_login_id ? get_permalink( $na_login_id ) : ( $account_id ? get_permalink( $account_id ) : home_url() );
+        wp_safe_redirect( $doel );
         exit;
     }
 } );

@@ -152,6 +152,16 @@ function lp_verwerk_registratie() {
     if ( empty( $data['iban_ten_name_van'] ) )           $fouten[] = __( 'Naam rekeninghouder is verplicht.', 'mijn-ledenportaal' );
     if ( empty( $data['incasso_toestemming'] ) )         $fouten[] = __( 'Je moet toestemming geven voor automatisch incasso.', 'mijn-ledenportaal' );
 
+    // Verplichte velden vanuit instellingen
+    $tekstvelden = [ 'geslacht', 'geboortedatum', 'telefoonnummer', 'mobiel', 'straatnaam', 'huisnummer', 'huisnummer_toevoeging', 'postcode', 'plaats', 'land', 'afdeling', 'soort_pensioen', 'verenigingsfunctie' ];
+    $labels      = lp_configureerbare_velden();
+    foreach ( $tekstvelden as $veld ) {
+        if ( lp_veld_verplicht( $veld ) && empty( $data[ $veld ] ) ) {
+            /* translators: %s: veldnaam */
+            $fouten[] = sprintf( __( '%s is verplicht.', 'mijn-ledenportaal' ), $labels[ $veld ] ?? $veld );
+        }
+    }
+
     // Saniteer optiekeuzevelden
     if ( ! in_array( $data['geslacht'], array_keys( lp_geslacht_opties() ), true ) )       $data['geslacht'] = '';
     if ( ! in_array( $data['afdeling'], array_keys( lp_afdeling_opties() ), true ) )       $data['afdeling'] = '';

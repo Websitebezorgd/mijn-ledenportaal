@@ -10,6 +10,15 @@ $sel = function( $key, $waarde ) use ( $ingevoerd ) {
 $checked_functie = function( $waarde ) use ( $ingevoerd ) {
     return ! empty( $ingevoerd['verenigingsfunctie'] ) && in_array( $waarde, (array) $ingevoerd['verenigingsfunctie'], true ) ? 'checked' : '';
 };
+$verplicht = function( $sleutel ) {
+    return lp_veld_verplicht( $sleutel );
+};
+$req = function( $sleutel ) use ( $verplicht ) {
+    return $verplicht( $sleutel ) ? 'required' : '';
+};
+$ster = function( $sleutel ) use ( $verplicht ) {
+    return $verplicht( $sleutel ) ? ' <span class="lp-verplicht">*</span>' : '';
+};
 ?>
 
 <div class="lp-formulier-wrap">
@@ -63,8 +72,8 @@ $checked_functie = function( $waarde ) use ( $ingevoerd ) {
             </div>
 
             <div class="lp-form-groep">
-                <label class="lp-label" for="lp-geslacht"><?php esc_html_e( 'Geslacht', 'mijn-ledenportaal' ); ?></label>
-                <select class="lp-select" id="lp-geslacht" name="geslacht">
+                <label class="lp-label" for="lp-geslacht"><?php esc_html_e( 'Geslacht', 'mijn-ledenportaal' ); ?><?php echo $ster( 'geslacht' ); ?></label>
+                <select class="lp-select" id="lp-geslacht" name="geslacht" <?php echo $req( 'geslacht' ); ?>>
                     <option value=""><?php esc_html_e( '— Selecteer —', 'mijn-ledenportaal' ); ?></option>
                     <?php foreach ( lp_geslacht_opties() as $waarde => $label ) : ?>
                         <option value="<?php echo esc_attr( $waarde ); ?>" <?php echo $sel( 'geslacht', $waarde ); ?>>
@@ -75,9 +84,9 @@ $checked_functie = function( $waarde ) use ( $ingevoerd ) {
             </div>
 
             <div class="lp-form-groep">
-                <label class="lp-label" for="lp-geboortedatum"><?php esc_html_e( 'Geboortedatum', 'mijn-ledenportaal' ); ?></label>
+                <label class="lp-label" for="lp-geboortedatum"><?php esc_html_e( 'Geboortedatum', 'mijn-ledenportaal' ); ?><?php echo $ster( 'geboortedatum' ); ?></label>
                 <input class="lp-input" type="date" id="lp-geboortedatum" name="geboortedatum"
-                    value="<?php echo $v( 'geboortedatum' ); ?>">
+                    value="<?php echo $v( 'geboortedatum' ); ?>" <?php echo $req( 'geboortedatum' ); ?>>
             </div>
 
             <h5 class="lp-sectie-titel"><?php esc_html_e( 'Contactgegevens', 'mijn-ledenportaal' ); ?></h5>
@@ -91,16 +100,16 @@ $checked_functie = function( $waarde ) use ( $ingevoerd ) {
 
             <div class="lp-rij lp-rij--2">
                 <div class="lp-form-groep">
-                    <label class="lp-label" for="lp-telefoonnummer"><?php esc_html_e( 'Telefoonnummer', 'mijn-ledenportaal' ); ?></label>
+                    <label class="lp-label" for="lp-telefoonnummer"><?php esc_html_e( 'Telefoonnummer', 'mijn-ledenportaal' ); ?><?php echo $ster( 'telefoonnummer' ); ?></label>
                     <input class="lp-input" type="tel" id="lp-telefoonnummer" name="telefoonnummer"
                         value="<?php echo $v( 'telefoonnummer' ); ?>"
-                        autocomplete="tel">
+                        autocomplete="tel" <?php echo $req( 'telefoonnummer' ); ?>>
                 </div>
                 <div class="lp-form-groep">
-                    <label class="lp-label" for="lp-mobiel"><?php esc_html_e( 'Mobiel', 'mijn-ledenportaal' ); ?></label>
+                    <label class="lp-label" for="lp-mobiel"><?php esc_html_e( 'Mobiel', 'mijn-ledenportaal' ); ?><?php echo $ster( 'mobiel' ); ?></label>
                     <input class="lp-input" type="tel" id="lp-mobiel" name="mobiel"
                         value="<?php echo $v( 'mobiel' ); ?>"
-                        autocomplete="tel">
+                        autocomplete="tel" <?php echo $req( 'mobiel' ); ?>>
                 </div>
             </div>
 
@@ -108,42 +117,42 @@ $checked_functie = function( $waarde ) use ( $ingevoerd ) {
 
             <div class="lp-rij lp-rij--3">
                 <div class="lp-form-groep lp-col--2">
-                    <label class="lp-label" for="lp-straatnaam"><?php esc_html_e( 'Straat', 'mijn-ledenportaal' ); ?></label>
+                    <label class="lp-label" for="lp-straatnaam"><?php esc_html_e( 'Straat', 'mijn-ledenportaal' ); ?><?php echo $ster( 'straatnaam' ); ?></label>
                     <input class="lp-input" type="text" id="lp-straatnaam" name="straatnaam"
                         value="<?php echo $v( 'straatnaam' ); ?>"
-                        autocomplete="street-address">
+                        autocomplete="street-address" <?php echo $req( 'straatnaam' ); ?>>
                 </div>
                 <div class="lp-form-groep">
-                    <label class="lp-label" for="lp-huisnummer"><?php esc_html_e( 'Huisnr.', 'mijn-ledenportaal' ); ?></label>
+                    <label class="lp-label" for="lp-huisnummer"><?php esc_html_e( 'Huisnr.', 'mijn-ledenportaal' ); ?><?php echo $ster( 'huisnummer' ); ?></label>
                     <input class="lp-input" type="text" id="lp-huisnummer" name="huisnummer"
-                        value="<?php echo $v( 'huisnummer' ); ?>">
+                        value="<?php echo $v( 'huisnummer' ); ?>" <?php echo $req( 'huisnummer' ); ?>>
                 </div>
             </div>
 
             <div class="lp-form-groep">
-                <label class="lp-label" for="lp-huisnummer-toevoeging"><?php esc_html_e( 'Toevoeging', 'mijn-ledenportaal' ); ?></label>
+                <label class="lp-label" for="lp-huisnummer-toevoeging"><?php esc_html_e( 'Toevoeging', 'mijn-ledenportaal' ); ?><?php echo $ster( 'huisnummer_toevoeging' ); ?></label>
                 <input class="lp-input lp-input--smal" type="text" id="lp-huisnummer-toevoeging" name="huisnummer_toevoeging"
-                    value="<?php echo $v( 'huisnummer_toevoeging' ); ?>">
+                    value="<?php echo $v( 'huisnummer_toevoeging' ); ?>" <?php echo $req( 'huisnummer_toevoeging' ); ?>>
             </div>
 
             <div class="lp-rij lp-rij--2">
                 <div class="lp-form-groep">
-                    <label class="lp-label" for="lp-postcode"><?php esc_html_e( 'Postcode', 'mijn-ledenportaal' ); ?></label>
+                    <label class="lp-label" for="lp-postcode"><?php esc_html_e( 'Postcode', 'mijn-ledenportaal' ); ?><?php echo $ster( 'postcode' ); ?></label>
                     <input class="lp-input" type="text" id="lp-postcode" name="postcode"
                         value="<?php echo $v( 'postcode' ); ?>"
-                        autocomplete="postal-code">
+                        autocomplete="postal-code" <?php echo $req( 'postcode' ); ?>>
                 </div>
                 <div class="lp-form-groep">
-                    <label class="lp-label" for="lp-plaats"><?php esc_html_e( 'Plaats', 'mijn-ledenportaal' ); ?></label>
+                    <label class="lp-label" for="lp-plaats"><?php esc_html_e( 'Plaats', 'mijn-ledenportaal' ); ?><?php echo $ster( 'plaats' ); ?></label>
                     <input class="lp-input" type="text" id="lp-plaats" name="plaats"
                         value="<?php echo $v( 'plaats' ); ?>"
-                        autocomplete="address-level2">
+                        autocomplete="address-level2" <?php echo $req( 'plaats' ); ?>>
                 </div>
             </div>
 
             <div class="lp-form-groep">
-                <label class="lp-label" for="lp-land"><?php esc_html_e( 'Land', 'mijn-ledenportaal' ); ?></label>
-                <select class="lp-select" id="lp-land" name="land" autocomplete="country">
+                <label class="lp-label" for="lp-land"><?php esc_html_e( 'Land', 'mijn-ledenportaal' ); ?><?php echo $ster( 'land' ); ?></label>
+                <select class="lp-select" id="lp-land" name="land" autocomplete="country" <?php echo $req( 'land' ); ?>>
                     <?php foreach ( lp_land_opties() as $code => $naam ) : ?>
                         <option value="<?php echo esc_attr( $code ); ?>" <?php echo $sel( 'land', $code ) ?: selected( 'NL', $code, false ); ?>>
                             <?php echo esc_html( $naam ); ?>
@@ -155,8 +164,8 @@ $checked_functie = function( $waarde ) use ( $ingevoerd ) {
             <h5 class="lp-sectie-titel"><?php esc_html_e( 'Lidmaatschapsgegevens', 'mijn-ledenportaal' ); ?></h5>
 
             <div class="lp-form-groep">
-                <label class="lp-label" for="lp-afdeling"><?php esc_html_e( 'Laatste afdeling/functie bij Delta Lloyd Groep', 'mijn-ledenportaal' ); ?></label>
-                <select class="lp-select" id="lp-afdeling" name="afdeling">
+                <label class="lp-label" for="lp-afdeling"><?php esc_html_e( 'Laatste afdeling/functie bij Delta Lloyd Groep', 'mijn-ledenportaal' ); ?><?php echo $ster( 'afdeling' ); ?></label>
+                <select class="lp-select" id="lp-afdeling" name="afdeling" <?php echo $req( 'afdeling' ); ?>>
                     <option value=""><?php esc_html_e( '— Selecteer —', 'mijn-ledenportaal' ); ?></option>
                     <?php foreach ( lp_afdeling_opties() as $waarde => $label ) : ?>
                         <option value="<?php echo esc_attr( $waarde ); ?>" <?php echo $sel( 'afdeling', $waarde ); ?>>
@@ -167,8 +176,8 @@ $checked_functie = function( $waarde ) use ( $ingevoerd ) {
             </div>
 
             <div class="lp-form-groep">
-                <label class="lp-label" for="lp-soort-pensioen"><?php esc_html_e( 'Soort pensioen', 'mijn-ledenportaal' ); ?></label>
-                <select class="lp-select" id="lp-soort-pensioen" name="soort_pensioen">
+                <label class="lp-label" for="lp-soort-pensioen"><?php esc_html_e( 'Soort pensioen', 'mijn-ledenportaal' ); ?><?php echo $ster( 'soort_pensioen' ); ?></label>
+                <select class="lp-select" id="lp-soort-pensioen" name="soort_pensioen" <?php echo $req( 'soort_pensioen' ); ?>>
                     <option value=""><?php esc_html_e( '— Selecteer —', 'mijn-ledenportaal' ); ?></option>
                     <?php foreach ( lp_pensioen_opties() as $waarde => $label ) : ?>
                         <option value="<?php echo esc_attr( $waarde ); ?>" <?php echo $sel( 'soort_pensioen', $waarde ); ?>>
@@ -179,7 +188,7 @@ $checked_functie = function( $waarde ) use ( $ingevoerd ) {
             </div>
 
             <div class="lp-form-groep">
-                <span class="lp-label"><?php esc_html_e( 'Inzetbaar voor verenigingsfunctie', 'mijn-ledenportaal' ); ?></span>
+                <span class="lp-label"><?php esc_html_e( 'Inzetbaar voor verenigingsfunctie', 'mijn-ledenportaal' ); ?><?php echo $ster( 'verenigingsfunctie' ); ?></span>
                 <div class="lp-checkboxes">
                     <?php foreach ( lp_functie_opties() as $waarde => $label ) : ?>
                         <label class="lp-checkbox-label">

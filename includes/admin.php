@@ -293,6 +293,15 @@ add_action( 'admin_menu', function() {
 
     add_submenu_page(
         'ledenportaal',
+        __( 'Formuliervelden', 'mijn-ledenportaal' ),
+        __( 'Formuliervelden', 'mijn-ledenportaal' ),
+        'manage_options',
+        'lp-formuliervelden',
+        'lp_admin_formuliervelden_pagina'
+    );
+
+    add_submenu_page(
+        'ledenportaal',
         __( 'Ledenbeheer', 'mijn-ledenportaal' ),
         __( 'Ledenbeheer', 'mijn-ledenportaal' ),
         'manage_options',
@@ -347,6 +356,12 @@ add_action( 'admin_init', function() {
             if ( ! is_array( $v ) ) return [];
             $rollen = array_keys( get_editable_roles() );
             return array_values( array_intersect( $v, $rollen ) );
+        },
+    ] );
+    register_setting( 'lp_formuliervelden', 'lp_verplicht_velden', [
+        'sanitize_callback' => function( $v ) {
+            $geldig = array_keys( lp_configureerbare_velden() );
+            return is_array( $v ) ? array_values( array_intersect( $v, $geldig ) ) : [];
         },
     ] );
     register_setting( 'lp_instellingen', 'lp_beveilig_alles', [
@@ -1132,6 +1147,101 @@ function lp_detail_rij( $label, $waarde ) {
     <div style="display: flex; gap: 6px; font-size: 13px; margin-bottom: 4px; line-height: 1.4;">
         <span style="color: #646970; min-width: 120px; flex-shrink: 0;"><?php echo esc_html( $label ); ?></span>
         <span style="color: #3c434a;"><?php echo $waarde !== '' ? esc_html( $waarde ) : '<span style="color:#999">—</span>'; ?></span>
+    </div>
+    <?php
+}
+
+/**
+ * Geeft alle configureerbare (optioneel verplichtbare) velden terug
+ */
+function lp_configureerbare_velden() {
+    return [
+        'geslacht'              => __( 'Geslacht', 'mijn-ledenportaal' ),
+        'geboortedatum'         => __( 'Geboortedatum', 'mijn-ledenportaal' ),
+        'telefoonnummer'        => __( 'Telefoonnummer', 'mijn-ledenportaal' ),
+        'mobiel'                => __( 'Mobiel', 'mijn-ledenportaal' ),
+        'straatnaam'            => __( 'Straatnaam', 'mijn-ledenportaal' ),
+        'huisnummer'            => __( 'Huisnummer', 'mijn-ledenportaal' ),
+        'huisnummer_toevoeging' => __( 'Huisnummer toevoeging', 'mijn-ledenportaal' ),
+        'postcode'              => __( 'Postcode', 'mijn-ledenportaal' ),
+        'plaats'                => __( 'Plaats', 'mijn-ledenportaal' ),
+        'land'                  => __( 'Land', 'mijn-ledenportaal' ),
+        'afdeling'              => __( 'Afdeling', 'mijn-ledenportaal' ),
+        'soort_pensioen'        => __( 'Soort pensioen', 'mijn-ledenportaal' ),
+        'verenigingsfunctie'    => __( 'Verenigingsfunctie', 'mijn-ledenportaal' ),
+    ];
+}
+
+/**
+ * Helper: is een veld verplicht?
+ */
+function lp_veld_verplicht( $sleutel ) {
+    return in_array( $sleutel, (array) get_option( 'lp_verplicht_velden', [] ), true );
+}
+
+/**
+ * Admin pagina: Formuliervelden
+ */
+function lp_admin_formuliervelden_pagina() {
+    if ( ! current_user_can( 'manage_options' ) ) return;
+
+    $verplicht_velden = (array) get_option( 'lp_verplicht_velden', [] );
+    $velden           = lp_configureerbare_velden();
+
+    $altijd_verplicht = [
+        'voornaam'           => __( 'Voornaam', 'mijn-ledenportaal' ),
+        'achternaam'         => __( 'Achternaam', 'mijn-ledenportaal' ),
+        'e-mailadres'        => __( 'E-mailadres', 'mijn-ledenportaal' ),
+        'wachtwoord'         => __( 'Wachtwoord', 'mijn-ledenportaal' ),
+        'iban'               => __( 'IBAN', 'mijn-ledenportaal' ),
+        'iban_ten_name_van'  => __( 'Ten name van', 'mijn-ledenportaal' ),
+        'incasso_toestemming' => __( 'Incasso toestemming', 'mijn-ledenportaal' ),
+    ];
+    ?>
+    <div class="wrap">
+        <h1><?php esc_html_e( 'Ledenportaal — Formuliervelden', 'mijn-ledenportaal' ); ?></h1>
+
+        <?php settings_errors( 'lp_formuliervelden' ); ?>
+
+        <p><?php esc_html_e( 'Selecteer welke velden verplicht zijn bij registratie. Altijd verplichte velden zijn niet aanpasbaar.', 'mijn-ledenportaal' ); ?></p>
+
+        <form method="post" action="options.php">
+            <?php settings_fields( 'lp_formuliervelden' ); ?>
+
+            <table class="wp-list-table widefat fixed striped" style="margin-top: 16px; max-width: 600px;">
+                <thead>
+                    <tr>
+                        <th style="width: 48px;"><?php esc_html_e( 'Verplicht', 'mijn-ledenportaal' ); ?></th>
+                        <th><?php esc_html_e( 'Veld', 'mijn-ledenportaal' ); ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ( $altijd_verplicht as $label ) : ?>
+                    <tr style="opacity: 0.6;">
+                        <td style="text-align: center;">
+                            <input type="checkbox" checked disabled>
+                        </td>
+                        <td><?php echo esc_html( $label ); ?> <em style="color:#888;font-size:12px;"><?php esc_html_e( '(altijd verplicht)', 'mijn-ledenportaal' ); ?></em></td>
+                    </tr>
+                    <?php endforeach; ?>
+                    <?php foreach ( $velden as $sleutel => $label ) : ?>
+                    <tr>
+                        <td style="text-align: center;">
+                            <input type="checkbox"
+                                name="lp_verplicht_velden[]"
+                                value="<?php echo esc_attr( $sleutel ); ?>"
+                                <?php checked( in_array( $sleutel, $verplicht_velden, true ) ); ?>>
+                        </td>
+                        <td><?php echo esc_html( $label ); ?></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+
+            <p style="margin-top: 16px;">
+                <?php submit_button( __( 'Opslaan', 'mijn-ledenportaal' ), 'primary', 'submit', false ); ?>
+            </p>
+        </form>
     </div>
     <?php
 }
