@@ -1542,7 +1542,8 @@ add_action( 'admin_init', function() {
 
         $datum = DateTime::createFromFormat( 'n/j/Y', $origineel )
               ?: DateTime::createFromFormat( 'm/d/Y', $origineel )
-              ?: DateTime::createFromFormat( 'n/j/y', $origineel );
+              ?: DateTime::createFromFormat( 'n/j/y', $origineel )
+              ?: DateTime::createFromFormat( 'Y/m/d', $origineel );
 
         if ( ! $datum ) {
             $fouten[] = 'Gebruiker #' . $u->ID . ': onbekend formaat "' . esc_html( $origineel ) . '"';
