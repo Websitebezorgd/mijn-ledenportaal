@@ -711,6 +711,41 @@ function lp_admin_instellingen_pagina() {
 
             <?php submit_button( __( 'Instellingen opslaan', 'mijn-ledenportaal' ) ); ?>
         </form>
+
+        <hr style="margin: 32px 0;">
+
+        <h2 id="lp-migratie"><?php esc_html_e( 'Eenmalige migratie: geboortedatum herstellen', 'mijn-ledenportaal' ); ?></h2>
+        <p style="max-width: 600px; color: #3c434a;"><?php esc_html_e( 'Het originele birth_date veld (formaat M/D/YYYY) opnieuw inlezen en correct opslaan als lp_geboortedatum (YYYY-MM-DD). Kan meerdere keren veilig uitgevoerd worden.', 'mijn-ledenportaal' ); ?></p>
+
+        <?php
+        $migratie = get_transient( 'lp_migratie_resultaat_' . get_current_user_id() );
+        if ( $migratie !== false ) {
+            delete_transient( 'lp_migratie_resultaat_' . get_current_user_id() );
+            echo '<div class="notice notice-success is-dismissible"><p>';
+            printf(
+                esc_html__( 'Migratie voltooid: %1$d bijgewerkt, %2$d overgeslagen.', 'mijn-ledenportaal' ),
+                (int) $migratie['bijgewerkt'],
+                (int) $migratie['overgeslagen']
+            );
+            echo '</p></div>';
+            if ( ! empty( $migratie['fouten'] ) ) {
+                echo '<div class="notice notice-warning"><p><strong>' . esc_html__( 'Niet gemigreerd:', 'mijn-ledenportaal' ) . '</strong></p><ul style="list-style: disc; margin-left: 20px;">';
+                foreach ( $migratie['fouten'] as $fout ) {
+                    echo '<li>' . esc_html( $fout ) . '</li>';
+                }
+                echo '</ul></div>';
+            }
+        }
+        ?>
+
+        <form method="post">
+            <?php wp_nonce_field( 'lp_migreer_geboortedatum' ); ?>
+            <button type="submit" name="lp_migreer_geboortedatum" value="1" class="button button-secondary"
+                onclick="return confirm('<?php esc_attr_e( 'Geboortedatums herstellen vanuit birth_date? Dit overschrijft de huidige lp_geboortedatum waarden.', 'mijn-ledenportaal' ); ?>')">
+                <?php esc_html_e( 'Geboortedatums migreren vanuit birth_date', 'mijn-ledenportaal' ); ?>
+            </button>
+        </form>
+
     </div>
     <?php
 }
@@ -1479,6 +1514,50 @@ add_action( 'admin_init', function() {
         ! isset( $_POST['lp_export_submit'] )
     ) return;
     lp_export_uitvoeren();
+} );
+
+add_action( 'admin_init', function() {
+    if (
+        ! is_admin() ||
+        ( $_GET['page'] ?? '' ) !== 'ledenportaal' ||
+        ! isset( $_POST['lp_migreer_geboortedatum'] )
+    ) return;
+    if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Geen toegang.' );
+    check_admin_referer( 'lp_migreer_geboortedatum' );
+
+    $gebruikers = get_users( [
+        'meta_key'     => 'birth_date',
+        'meta_compare' => 'EXISTS',
+        'fields'       => [ 'ID' ],
+        'number'       => -1,
+    ] );
+
+    $bijgewerkt = 0;
+    $overgeslagen = 0;
+    $fouten = [];
+
+    foreach ( $gebruikers as $u ) {
+        $origineel = get_user_meta( $u->ID, 'birth_date', true );
+        if ( empty( $origineel ) ) { $overgeslagen++; continue; }
+
+        $datum = DateTime::createFromFormat( 'n/j/Y', $origineel )
+              ?: DateTime::createFromFormat( 'm/d/Y', $origineel )
+              ?: DateTime::createFromFormat( 'n/j/y', $origineel );
+
+        if ( ! $datum ) {
+            $fouten[] = 'Gebruiker #' . $u->ID . ': onbekend formaat "' . esc_html( $origineel ) . '"';
+            continue;
+        }
+
+        update_user_meta( $u->ID, 'lp_geboortedatum', $datum->format( 'Y-m-d' ) );
+        $bijgewerkt++;
+    }
+
+    $resultaat = compact( 'bijgewerkt', 'overgeslagen', 'fouten' );
+    set_transient( 'lp_migratie_resultaat_' . get_current_user_id(), $resultaat, 60 );
+
+    wp_redirect( admin_url( 'admin.php?page=ledenportaal#lp-migratie' ) );
+    exit;
 } );
 
 /**
