@@ -915,6 +915,28 @@ function lp_admin_mails_pagina() {
     <?php
 }
 
+function lp_paginering( $huidige_pag, $paginas, $totaal, $basis_url ) {
+    if ( $paginas <= 1 ) return;
+    echo '<div style="margin: 12px 0; display: flex; align-items: center; gap: 6px; font-size: 13px; flex-wrap: wrap;">';
+    if ( $huidige_pag > 1 ) {
+        echo '<a href="' . esc_url( add_query_arg( 'lp_pag', $huidige_pag - 1, $basis_url ) ) . '" class="button button-small">&laquo;</a>';
+    }
+    for ( $p = 1; $p <= $paginas; $p++ ) {
+        if ( $p === $huidige_pag ) {
+            echo '<span class="button button-small" style="font-weight: 700; background: #2271b1; color: #fff; border-color: #2271b1;">' . $p . '</span>';
+        } elseif ( $p === 1 || $p === $paginas || abs( $p - $huidige_pag ) <= 2 ) {
+            echo '<a href="' . esc_url( add_query_arg( 'lp_pag', $p, $basis_url ) ) . '" class="button button-small">' . $p . '</a>';
+        } elseif ( abs( $p - $huidige_pag ) === 3 ) {
+            echo '<span style="padding: 0 2px;">…</span>';
+        }
+    }
+    if ( $huidige_pag < $paginas ) {
+        echo '<a href="' . esc_url( add_query_arg( 'lp_pag', $huidige_pag + 1, $basis_url ) ) . '" class="button button-small">&raquo;</a>';
+    }
+    echo '<span style="color: #646970; margin-left: 8px;">' . sprintf( __( 'Pagina %1$d van %2$d (%3$d leden)', 'mijn-ledenportaal' ), $huidige_pag, $paginas, $totaal ) . '</span>';
+    echo '</div>';
+}
+
 /**
  * Admin pagina: Ledenbeheer
  */
@@ -946,17 +968,27 @@ function lp_admin_ledenbeheer_pagina() {
     }
 
     $filter_status = sanitize_key( $_GET['lp_filter'] ?? 'all' );
+    $per_pagina    = 50;
+    $huidige_pag   = max( 1, absint( $_GET['lp_pag'] ?? 1 ) );
 
-    $query_args = [
+    $basis_args = [
         'meta_key'     => 'lp_account_status',
         'meta_compare' => 'EXISTS',
-        'number'       => 200,
         'orderby'      => 'registered',
         'order'        => 'DESC',
     ];
     if ( $filter_status !== 'all' ) {
-        $query_args['meta_value'] = $filter_status;
+        $basis_args['meta_value'] = $filter_status;
     }
+
+    $totaal     = count( get_users( array_merge( $basis_args, [ 'fields' => 'ID' ] ) ) );
+    $paginas    = max( 1, (int) ceil( $totaal / $per_pagina ) );
+    $huidige_pag = min( $huidige_pag, $paginas );
+
+    $query_args  = array_merge( $basis_args, [
+        'number' => $per_pagina,
+        'offset' => ( $huidige_pag - 1 ) * $per_pagina,
+    ] );
 
     $gebruikers = get_users( $query_args );
 
@@ -977,7 +1009,10 @@ function lp_admin_ledenbeheer_pagina() {
     $functie_opties  = lp_functie_opties();
     $land_opties     = lp_land_opties();
 
-    $huidige_url = admin_url( 'admin.php?page=lp-ledenbeheer' );
+    $huidige_url  = admin_url( 'admin.php?page=lp-ledenbeheer' );
+    $pagineer_url = $filter_status !== 'all'
+        ? add_query_arg( 'lp_filter', $filter_status, $huidige_url )
+        : $huidige_url;
     ?>
     <div class="wrap">
         <h1><?php esc_html_e( 'Ledenportaal — Ledenbeheer', 'mijn-ledenportaal' ); ?></h1>
@@ -989,10 +1024,12 @@ function lp_admin_ledenbeheer_pagina() {
             <li><a href="<?php echo esc_url( add_query_arg( 'lp_filter', 'rejected', $huidige_url ) ); ?>" <?php echo $filter_status === 'rejected' ? 'class="current"' : ''; ?>><?php esc_html_e( 'Afgewezen', 'mijn-ledenportaal' ); ?></a></li>
         </ul>
 
+        <?php lp_paginering( $huidige_pag, $paginas, $totaal, $pagineer_url ); ?>
+
         <?php if ( empty( $gebruikers ) ) : ?>
             <p><?php esc_html_e( 'Geen leden gevonden.', 'mijn-ledenportaal' ); ?></p>
         <?php else : ?>
-        <table class="wp-list-table widefat" style="margin-top: 20px; border-collapse: collapse;">
+        <table class="wp-list-table widefat" style="margin-top: 0; border-collapse: collapse;">
             <thead>
                 <tr>
                     <th style="width: 32px;"></th>
@@ -1156,6 +1193,7 @@ function lp_admin_ledenbeheer_pagina() {
                 <?php endforeach; ?>
             </tbody>
         </table>
+        <?php lp_paginering( $huidige_pag, $paginas, $totaal, $pagineer_url ); ?>
         <?php endif; ?>
     </div>
     <script>
