@@ -968,6 +968,7 @@ function lp_admin_ledenbeheer_pagina() {
     }
 
     $filter_status = sanitize_key( $_GET['lp_filter'] ?? 'all' );
+    $zoekterm      = sanitize_text_field( wp_unslash( $_GET['lp_zoek'] ?? '' ) );
     $per_pagina    = 50;
     $huidige_pag   = max( 1, absint( $_GET['lp_pag'] ?? 1 ) );
 
@@ -980,12 +981,16 @@ function lp_admin_ledenbeheer_pagina() {
     if ( $filter_status !== 'all' ) {
         $basis_args['meta_value'] = $filter_status;
     }
+    if ( $zoekterm !== '' ) {
+        $basis_args['search']         = '*' . $zoekterm . '*';
+        $basis_args['search_columns'] = [ 'user_login', 'user_email', 'display_name', 'user_nicename' ];
+    }
 
-    $totaal     = count( get_users( array_merge( $basis_args, [ 'fields' => 'ID' ] ) ) );
-    $paginas    = max( 1, (int) ceil( $totaal / $per_pagina ) );
+    $totaal      = count( get_users( array_merge( $basis_args, [ 'fields' => 'ID' ] ) ) );
+    $paginas     = max( 1, (int) ceil( $totaal / $per_pagina ) );
     $huidige_pag = min( $huidige_pag, $paginas );
 
-    $query_args  = array_merge( $basis_args, [
+    $query_args = array_merge( $basis_args, [
         'number' => $per_pagina,
         'offset' => ( $huidige_pag - 1 ) * $per_pagina,
     ] );
@@ -1010,9 +1015,13 @@ function lp_admin_ledenbeheer_pagina() {
     $land_opties     = lp_land_opties();
 
     $huidige_url  = admin_url( 'admin.php?page=lp-ledenbeheer' );
-    $pagineer_url = $filter_status !== 'all'
-        ? add_query_arg( 'lp_filter', $filter_status, $huidige_url )
-        : $huidige_url;
+    $pagineer_url = $huidige_url;
+    if ( $filter_status !== 'all' ) {
+        $pagineer_url = add_query_arg( 'lp_filter', $filter_status, $pagineer_url );
+    }
+    if ( $zoekterm !== '' ) {
+        $pagineer_url = add_query_arg( 'lp_zoek', $zoekterm, $pagineer_url );
+    }
     ?>
     <div class="wrap">
         <h1><?php esc_html_e( 'Ledenportaal — Ledenbeheer', 'mijn-ledenportaal' ); ?></h1>
@@ -1024,7 +1033,24 @@ function lp_admin_ledenbeheer_pagina() {
             <li><a href="<?php echo esc_url( add_query_arg( 'lp_filter', 'rejected', $huidige_url ) ); ?>" <?php echo $filter_status === 'rejected' ? 'class="current"' : ''; ?>><?php esc_html_e( 'Afgewezen', 'mijn-ledenportaal' ); ?></a></li>
         </ul>
 
-        <?php lp_paginering( $huidige_pag, $paginas, $totaal, $pagineer_url ); ?>
+        <div style="clear: both; padding-top: 8px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+            <form method="get" style="display: flex; gap: 6px; align-items: center;">
+                <input type="hidden" name="page" value="lp-ledenbeheer">
+                <?php if ( $filter_status !== 'all' ) : ?>
+                    <input type="hidden" name="lp_filter" value="<?php echo esc_attr( $filter_status ); ?>">
+                <?php endif; ?>
+                <input type="search" name="lp_zoek" value="<?php echo esc_attr( $zoekterm ); ?>"
+                    placeholder="<?php esc_attr_e( 'Zoek op naam of e-mail…', 'mijn-ledenportaal' ); ?>"
+                    style="min-width: 240px;">
+                <button type="submit" class="button"><?php esc_html_e( 'Zoeken', 'mijn-ledenportaal' ); ?></button>
+                <?php if ( $zoekterm !== '' ) : ?>
+                    <a href="<?php echo esc_url( $filter_status !== 'all' ? add_query_arg( 'lp_filter', $filter_status, $huidige_url ) : $huidige_url ); ?>" class="button">
+                        <?php esc_html_e( '✕ Wis zoekopdracht', 'mijn-ledenportaal' ); ?>
+                    </a>
+                <?php endif; ?>
+            </form>
+            <?php lp_paginering( $huidige_pag, $paginas, $totaal, $pagineer_url ); ?>
+        </div>
 
         <?php if ( empty( $gebruikers ) ) : ?>
             <p><?php esc_html_e( 'Geen leden gevonden.', 'mijn-ledenportaal' ); ?></p>
