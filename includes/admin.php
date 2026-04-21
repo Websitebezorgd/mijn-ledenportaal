@@ -927,15 +927,19 @@ function lp_admin_ledenbeheer_pagina() {
             $actie   = sanitize_key( $_POST['lp_ledenbeheer_actie'] );
             $user_id = absint( $_POST['lp_user_id'] ?? 0 );
 
-            if ( $user_id && in_array( $actie, [ 'goedkeuren', 'afwijzen' ], true ) ) {
+            if ( $user_id && in_array( $actie, [ 'goedkeuren', 'afwijzen', 'testaccount_aan', 'testaccount_uit' ], true ) ) {
                 if ( $actie === 'goedkeuren' ) {
                     update_user_meta( $user_id, 'lp_account_status', 'approved' );
                     do_action( 'lp_account_goedgekeurd', $user_id );
                     echo '<div class="notice notice-success"><p>' . esc_html__( 'Account goedgekeurd.', 'mijn-ledenportaal' ) . '</p></div>';
-                } else {
+                } elseif ( $actie === 'afwijzen' ) {
                     update_user_meta( $user_id, 'lp_account_status', 'rejected' );
                     do_action( 'lp_account_afgewezen', $user_id );
                     echo '<div class="notice notice-warning"><p>' . esc_html__( 'Account afgewezen.', 'mijn-ledenportaal' ) . '</p></div>';
+                } elseif ( $actie === 'testaccount_aan' ) {
+                    update_user_meta( $user_id, 'lp_is_testaccount', '1' );
+                } elseif ( $actie === 'testaccount_uit' ) {
+                    delete_user_meta( $user_id, 'lp_is_testaccount' );
                 }
             }
         }
@@ -1006,9 +1010,10 @@ function lp_admin_ledenbeheer_pagina() {
                     $status          = get_user_meta( $uid, 'lp_account_status', true );
                     $kleur           = $status_kleuren[ $status ] ?? '#999';
                     $label           = $status_labels[ $status ] ?? esc_html( $status );
-                    $gewijzigd_datum = get_user_meta( $uid, 'lp_account_gewijzigd', true );
-                    $detail_id       = 'lp-detail-' . $uid;
-                    $rij_bg          = $i % 2 === 0 ? '#fff' : '#f9f9f9';
+                    $gewijzigd_datum  = get_user_meta( $uid, 'lp_account_gewijzigd', true );
+                    $is_testaccount   = get_user_meta( $uid, 'lp_is_testaccount', true ) === '1';
+                    $detail_id        = 'lp-detail-' . $uid;
+                    $rij_bg           = $i % 2 === 0 ? '#fff' : '#f9f9f9';
 
                     // Alle meta voor detailrij
                     $m = [
@@ -1054,6 +1059,9 @@ function lp_admin_ledenbeheer_pagina() {
                         </td>
                         <td style="padding: 10px 8px;">
                             <strong><?php echo esc_html( $gebruiker->display_name ); ?></strong>
+                            <?php if ( $is_testaccount ) : ?>
+                                <span style="background: #e67e22; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 6px; vertical-align: middle;"><?php esc_html_e( 'Test', 'mijn-ledenportaal' ); ?></span>
+                            <?php endif; ?>
                         </td>
                         <td style="padding: 10px 8px;"><?php echo esc_html( $gebruiker->user_email ); ?></td>
                         <td style="padding: 10px 8px;"><?php echo esc_html( date_i18n( get_option( 'date_format' ), strtotime( $gebruiker->user_registered ) ) ); ?></td>
@@ -1085,6 +1093,14 @@ function lp_admin_ledenbeheer_pagina() {
                                     </button>
                                 </form>
                             <?php endif; ?>
+                            <form method="post" style="display: inline; margin-left: 4px;">
+                                <?php wp_nonce_field( 'lp_ledenbeheer', 'lp_ledenbeheer_nonce' ); ?>
+                                <input type="hidden" name="lp_user_id" value="<?php echo esc_attr( $uid ); ?>">
+                                <input type="hidden" name="lp_ledenbeheer_actie" value="<?php echo $is_testaccount ? 'testaccount_uit' : 'testaccount_aan'; ?>">
+                                <button type="submit" class="button button-small" style="<?php echo $is_testaccount ? 'color: #e67e22; border-color: #e67e22;' : ''; ?>">
+                                    <?php echo $is_testaccount ? esc_html__( 'Geen testaccount', 'mijn-ledenportaal' ) : esc_html__( 'Testaccount', 'mijn-ledenportaal' ); ?>
+                                </button>
+                            </form>
                             <a href="<?php echo esc_url( get_edit_user_link( $uid ) ); ?>" class="button button-small" style="margin-left: 4px;">
                                 <?php esc_html_e( 'Bewerken', 'mijn-ledenportaal' ); ?>
                             </a>
@@ -1318,10 +1334,20 @@ function lp_export_uitvoeren() {
     $datum_van      = sanitize_text_field( $_POST['lp_export_datum_van'] ?? '' );
     $datum_tot      = sanitize_text_field( $_POST['lp_export_datum_tot'] ?? '' );
 
+    $geen_testaccounts = ! empty( $_POST['lp_export_geen_testaccounts'] );
+
     // Gebruikers ophalen
     $args = [ 'number' => -1, 'orderby' => 'ID' ];
     if ( ! empty( $gekozen_rollen ) ) {
         $args['role__in'] = $gekozen_rollen;
+    }
+    if ( $geen_testaccounts ) {
+        $args['meta_query'] = [
+            [
+                'key'     => 'lp_is_testaccount',
+                'compare' => 'NOT EXISTS',
+            ],
+        ];
     }
 
     // Datum filter op registratiedatum
@@ -1830,6 +1856,11 @@ function lp_admin_export_pagina() {
             </div>
 
             <p style="margin-top: 24px;">
+                <label style="display: inline-flex; align-items: center; gap: 6px; margin-bottom: 12px; font-size: 13px;">
+                    <input type="checkbox" name="lp_export_geen_testaccounts" value="1" checked>
+                    <?php esc_html_e( 'Testaccounts uitsluiten', 'mijn-ledenportaal' ); ?>
+                </label>
+                <br>
                 <button type="submit" name="lp_export_submit" class="button button-primary">
                     <?php esc_html_e( 'CSV downloaden', 'mijn-ledenportaal' ); ?>
                 </button>
