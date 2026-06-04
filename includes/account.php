@@ -161,7 +161,7 @@ function lp_render_account() {
         'huisnummer_toevoeging' => get_user_meta( $user_id, 'lp_huisnummer_toevoeging', true ),
         'postcode'              => get_user_meta( $user_id, 'lp_postcode', true ),
         'plaats'                => get_user_meta( $user_id, 'lp_plaats', true ),
-        'land'                  => get_user_meta( $user_id, 'lp_land', true ) ?: 'NL',
+        'land'                  => get_user_meta( $user_id, 'lp_land', true ),
         'afdeling'              => get_user_meta( $user_id, 'lp_afdeling', true ),
         'soort_pensioen'        => get_user_meta( $user_id, 'lp_soort_pensioen', true ),
         'verenigingsfunctie'           => get_user_meta( $user_id, 'lp_verenigingsfunctie' ),
