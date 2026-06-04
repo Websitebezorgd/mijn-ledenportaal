@@ -123,6 +123,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             <div class="lp-form-groep">
                 <label class="lp-label" for="lp-land"><?php esc_html_e( 'Land', 'mijn-ledenportaal' ); ?></label>
                 <select class="lp-select" id="lp-land" name="land" autocomplete="country">
+                    <option value=""><?php esc_html_e( '— Selecteer land —', 'mijn-ledenportaal' ); ?></option>
                     <?php foreach ( lp_land_opties() as $code => $naam ) : ?>
                         <option value="<?php echo esc_attr( $code ); ?>" <?php selected( $meta['land'], $code ); ?>>
                             <?php echo esc_html( $naam ); ?>

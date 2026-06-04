@@ -112,8 +112,9 @@ function lp_toon_profiel_velden( $user ) {
                     value="<?php echo esc_attr( $meta['plaats'] ); ?>" style="width:160px">
                 <br style="margin-bottom:6px">
                 <select name="lp_land">
+                    <option value=""><?php esc_html_e( '— Selecteer land —', 'mijn-ledenportaal' ); ?></option>
                     <?php foreach ( lp_land_opties() as $code => $naam ) : ?>
-                        <option value="<?php echo esc_attr( $code ); ?>" <?php selected( $meta['land'] ?: 'NL', $code ); ?>>
+                        <option value="<?php echo esc_attr( $code ); ?>" <?php selected( $meta['land'], $code ); ?>>
                             <?php echo esc_html( $naam ); ?>
                         </option>
                     <?php endforeach; ?>
