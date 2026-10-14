@@ -141,7 +141,8 @@ function lp_verwerk_registratie() {
     if ( empty( $data['voornaam'] ) )   $fouten[] = __( 'Voornaam is verplicht.', 'mijn-ledenportaal' );
     if ( empty( $data['achternaam'] ) ) $fouten[] = __( 'Achternaam is verplicht.', 'mijn-ledenportaal' );
     if ( ! is_email( $data['email'] ) ) $fouten[] = __( 'Voer een geldig e-mailadres in.', 'mijn-ledenportaal' );
-    if ( email_exists( $data['email'] ) ) $fouten[] = __( 'Dit e-mailadres is al geregistreerd.', 'mijn-ledenportaal' );
+    // Het e-mailadres wordt ook als gebruikersnaam gebruikt; een oud adres kan nog als gebruikersnaam bestaan
+    if ( email_exists( $data['email'] ) || username_exists( $data['email'] ) ) $fouten[] = __( 'Dit e-mailadres is al geregistreerd.', 'mijn-ledenportaal' );
     if ( empty( $data['wachtwoord'] ) )             $fouten[] = __( 'Wachtwoord is verplicht.', 'mijn-ledenportaal' );
     if ( strlen( $data['wachtwoord'] ) < 8 )        $fouten[] = __( 'Wachtwoord moet minimaal 8 tekens bevatten.', 'mijn-ledenportaal' );
     if ( $data['wachtwoord'] !== $data['wachtwoord2'] ) $fouten[] = __( 'Wachtwoorden komen niet overeen.', 'mijn-ledenportaal' );
