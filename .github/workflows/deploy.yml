@@ -28,3 +28,4 @@ jobs:
                       **/.DS_Store
                       **/.env
                       **/.github/**
+                      **/*.csv

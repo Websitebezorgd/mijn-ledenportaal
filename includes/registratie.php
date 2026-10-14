@@ -171,8 +171,11 @@ function lp_verwerk_registratie() {
 
     if ( ! empty( $fouten ) ) {
         $token = lp_sla_fouten_op( 'registratie', $fouten );
-        // Sla formulierdata tijdelijk op (60s) zodat velden bewaard blijven
-        set_transient( 'lp_reg_data_' . $token, $data, 60 );
+        // Sla formulierdata tijdelijk op (60s) zodat velden bewaard blijven — zonder wachtwoorden,
+        // want transients staan zonder object cache als platte tekst in wp_options
+        $bewaren = $data;
+        unset( $bewaren['wachtwoord'], $bewaren['wachtwoord2'] );
+        set_transient( 'lp_reg_data_' . $token, $bewaren, 60 );
         wp_safe_redirect( add_query_arg( 'lp_fout_registratie', $token, lp_huidige_url() ) );
         exit;
     }

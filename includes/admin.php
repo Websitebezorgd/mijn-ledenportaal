@@ -8,6 +8,9 @@ add_action( 'show_user_profile', 'lp_toon_profiel_velden' );
 add_action( 'edit_user_profile', 'lp_toon_profiel_velden' );
 
 function lp_toon_profiel_velden( $user ) {
+    // Alleen beheerders; anders kan een lid via wp-admin/profile.php zijn eigen status wijzigen
+    if ( ! current_user_can( 'edit_users' ) ) return;
+
     $meta = [
         'account_status'        => get_user_meta( $user->ID, 'lp_account_status', true ),
         'geslacht'              => get_user_meta( $user->ID, 'lp_geslacht', true ),
@@ -210,15 +213,21 @@ function lp_toon_profiel_velden( $user ) {
  * de lp_ velden niet bewaard (en geen statusmails verstuurd) als WordPress het opslaan weigert,
  * bijvoorbeeld omdat het e-mailadres al bij een ander account hoort. De nonce-check zorgt dat
  * dit alleen gebeurt vanuit het profielformulier in de admin.
+ *
+ * Alleen beheerders (edit_users) mogen deze velden opslaan: edit_user is ook waar voor je
+ * eigen account, waardoor een lid zichzelf anders kan goedkeuren.
  */
 add_action( 'profile_update', 'lp_sla_profiel_velden_op' );
 
 function lp_sla_profiel_velden_op( $user_id ) {
-    if ( ! current_user_can( 'edit_user', $user_id ) ) return;
+    if ( ! current_user_can( 'edit_users' ) || ! current_user_can( 'edit_user', $user_id ) ) return;
     if ( ! isset( $_POST['lp_profiel_nonce'] ) || ! wp_verify_nonce( $_POST['lp_profiel_nonce'], 'lp_opslaan_profiel_' . $user_id ) ) return;
 
-    $oude_status = get_user_meta( $user_id, 'lp_account_status', true );
+    $oude_status   = get_user_meta( $user_id, 'lp_account_status', true );
     $nieuwe_status = sanitize_key( $_POST['lp_account_status'] ?? '' );
+    if ( ! in_array( $nieuwe_status, [ '', 'pending', 'approved', 'rejected' ], true ) ) {
+        $nieuwe_status = $oude_status;
+    }
 
     update_user_meta( $user_id, 'lp_account_status',        $nieuwe_status );
     update_user_meta( $user_id, 'lp_geslacht',              sanitize_key( $_POST['lp_geslacht'] ?? '' ) );
