@@ -203,10 +203,15 @@ function lp_toon_profiel_velden( $user ) {
 }
 
 /**
- * Sla lp_ velden op bij het bewaren van het gebruikersprofiel in de admin
+ * Sla lp_ velden op bij het bewaren van het gebruikersprofiel in de admin.
+ *
+ * Gekoppeld aan profile_update (en niet aan personal_options_update / edit_user_profile_update),
+ * omdat die pas vuurt nadat WordPress het profiel heeft gevalideerd en opgeslagen. Zo worden
+ * de lp_ velden niet bewaard (en geen statusmails verstuurd) als WordPress het opslaan weigert,
+ * bijvoorbeeld omdat het e-mailadres al bij een ander account hoort. De nonce-check zorgt dat
+ * dit alleen gebeurt vanuit het profielformulier in de admin.
  */
-add_action( 'personal_options_update', 'lp_sla_profiel_velden_op' );
-add_action( 'edit_user_profile_update', 'lp_sla_profiel_velden_op' );
+add_action( 'profile_update', 'lp_sla_profiel_velden_op' );
 
 function lp_sla_profiel_velden_op( $user_id ) {
     if ( ! current_user_can( 'edit_user', $user_id ) ) return;
@@ -1600,7 +1605,7 @@ function lp_admin_import_pagina() {
             </div>
         <?php endif; ?>
 
-        <p><?php esc_html_e( 'Upload een CSV-bestand in hetzelfde formaat als de export (puntkomma-gescheiden, UTF-8). Bestaande gebruikers worden herkend op e-mailadres of gebruikersnaam en bijgewerkt. Nieuwe gebruikers worden aangemaakt als die optie is ingeschakeld.', 'mijn-ledenportaal' ); ?></p>
+        <p><?php esc_html_e( 'Upload een CSV-bestand in hetzelfde formaat als de export (puntkomma-gescheiden, UTF-8). Bestaande gebruikers worden herkend op e-mailadres of gebruikersnaam en bijgewerkt. Nieuwe gebruikers worden aangemaakt als die optie is ingeschakeld; daarvoor is een geldig e-mailadres verplicht.', 'mijn-ledenportaal' ); ?></p>
 
         <form method="post" enctype="multipart/form-data">
             <?php wp_nonce_field( 'lp_import' ); ?>
@@ -1781,10 +1786,22 @@ function lp_import_uitvoeren() {
             $data[ $slug ] = isset( $rij[ $i ] ) ? trim( $rij[ $i ] ) : '';
         }
 
+        // E-mailadres valideren — sanitize_email() maakt van een ongeldig adres een lege string,
+        // waardoor het bestaande adres van een lid anders gewist zou worden
+        $email = '';
+        if ( ! empty( $data['user_email'] ) ) {
+            $email = sanitize_email( $data['user_email'] );
+            if ( ! is_email( $email ) ) {
+                $resultaten['fouten'][]  = sprintf( __( 'Rij %1$d: ongeldig e-mailadres "%2$s".', 'mijn-ledenportaal' ), $rij_nummer, $data['user_email'] );
+                $resultaten['overgeslagen']++;
+                continue;
+            }
+        }
+
         // Gebruiker opzoeken op e-mail of gebruikersnaam
         $gebruiker_id = null;
-        if ( ! empty( $data['user_email'] ) ) {
-            $gebruiker = get_user_by( 'email', $data['user_email'] );
+        if ( $email ) {
+            $gebruiker = get_user_by( 'email', $email );
             if ( $gebruiker ) $gebruiker_id = $gebruiker->ID;
         }
         if ( ! $gebruiker_id && ! empty( $data['user_login'] ) ) {
@@ -1794,8 +1811,15 @@ function lp_import_uitvoeren() {
 
         if ( $gebruiker_id ) {
             // Bestaande gebruiker bijwerken
+            $email_eigenaar = $email ? email_exists( $email ) : false;
+            if ( $email_eigenaar && (int) $email_eigenaar !== (int) $gebruiker_id ) {
+                $resultaten['fouten'][]  = sprintf( __( 'Rij %1$d: e-mailadres %2$s is al in gebruik bij een ander account.', 'mijn-ledenportaal' ), $rij_nummer, $email );
+                $resultaten['overgeslagen']++;
+                continue;
+            }
+
             $update_args = [ 'ID' => $gebruiker_id ];
-            if ( ! empty( $data['user_email'] ) ) $update_args['user_email'] = sanitize_email( $data['user_email'] );
+            if ( $email ) $update_args['user_email'] = $email;
             if ( isset( $data['first_name'] ) )   $update_args['first_name'] = sanitize_text_field( $data['first_name'] );
             if ( isset( $data['last_name'] ) )     $update_args['last_name']  = sanitize_text_field( $data['last_name'] );
 
@@ -1811,16 +1835,23 @@ function lp_import_uitvoeren() {
 
         } elseif ( $toevoegen ) {
             // Nieuwe gebruiker aanmaken
-            if ( empty( $data['user_email'] ) && empty( $data['user_login'] ) ) {
-                $resultaten['fouten'][]  = sprintf( __( 'Rij %d: geen e-mailadres of gebruikersnaam opgegeven.', 'mijn-ledenportaal' ), $rij_nummer );
+            // Zonder e-mailadres kan een lid niet inloggen of een wachtwoord herstellen
+            if ( ! $email ) {
+                $resultaten['fouten'][]  = sprintf( __( 'Rij %d: geen e-mailadres opgegeven; een nieuw account vereist een e-mailadres.', 'mijn-ledenportaal' ), $rij_nummer );
                 $resultaten['overgeslagen']++;
                 continue;
             }
 
-            $login     = ! empty( $data['user_login'] ) ? sanitize_user( $data['user_login'] ) : sanitize_user( $data['user_email'] );
+            $login = ! empty( $data['user_login'] ) ? sanitize_user( $data['user_login'] ) : sanitize_user( $email );
+            if ( username_exists( $login ) ) {
+                $resultaten['fouten'][]  = sprintf( __( 'Rij %1$d: gebruikersnaam %2$s is al in gebruik bij een ander account.', 'mijn-ledenportaal' ), $rij_nummer, $login );
+                $resultaten['overgeslagen']++;
+                continue;
+            }
+
             $user_args = [
                 'user_login' => $login,
-                'user_email' => sanitize_email( $data['user_email'] ?? '' ),
+                'user_email' => $email,
                 'first_name' => sanitize_text_field( $data['first_name'] ?? '' ),
                 'last_name'  => sanitize_text_field( $data['last_name'] ?? '' ),
                 'user_pass'  => ! empty( $standaard_ww ) ? $standaard_ww : wp_generate_password( 16 ),
