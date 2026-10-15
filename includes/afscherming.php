@@ -24,8 +24,9 @@ function lp_pad_is_uitgesloten( $pad ) {
     foreach ( array_filter( array_map( 'trim', explode( "\n", $uitgesloten_urls ) ) ) as $patroon ) {
         $patroon = rtrim( $patroon, '/' ) ?: '/';
         if ( str_ends_with( $patroon, '*' ) ) {
+            // Wildcard matcht op hele padsegmenten: /nieuws* matcht /nieuws en /nieuws/x, niet /nieuwsbrief
             $prefix = rtrim( substr( $patroon, 0, -1 ), '/' );
-            if ( str_starts_with( $pad, $prefix ) ) return true;
+            if ( $pad === ( $prefix ?: '/' ) || str_starts_with( $pad, $prefix . '/' ) ) return true;
         } elseif ( $pad === $patroon ) {
             return true;
         }
@@ -96,8 +97,9 @@ add_action( 'template_redirect', function() {
     $is_afgeschermd = false;
 
     if ( $beveilig_alles ) {
-        // Alles beveiligen, behalve de portaal-pagina's zelf
-        $is_afgeschermd = ! is_page( $altijd_toegankelijk ) && ! is_front_page();
+        // Alles beveiligen, behalve de portaal-pagina's zelf en de homepage.
+        // is_page( [] ) is waar op élke pagina, dus alleen aanroepen met een gevulde lijst.
+        $is_afgeschermd = ! ( $altijd_toegankelijk && is_page( $altijd_toegankelijk ) ) && ! is_front_page();
     } else {
         $beveiligde_paginas    = get_option( 'lp_beveiligde_paginas', [] );
         $bev_post_types        = (array) get_option( 'lp_beveiligde_post_types', [] );

@@ -46,6 +46,43 @@ function lp_huidige_url()
     return remove_query_arg(['lp_fout_login', 'lp_fout_registratie', 'lp_fout_account', 'lp_fout_wachtwoord_vergeten', 'lp_fout_nieuw_wachtwoord', 'lp_status'], $url);
 }
 
+/**
+ * Helper: IP-adres van de bezoeker (voor rate limiting)
+ *
+ * Bewust REMOTE_ADDR en geen X-Forwarded-For: die header is door de bezoeker te vervalsen.
+ */
+function lp_client_ip()
+{
+    return sanitize_text_field($_SERVER['REMOTE_ADDR'] ?? '');
+}
+
+/**
+ * Helper: rate limiting via transients — is het maximum voor deze actie + sleutel bereikt?
+ */
+function lp_limiet_bereikt($actie, $sleutel, $max)
+{
+    return (int) get_transient(lp_limiet_transient($actie, $sleutel)) >= $max;
+}
+
+/**
+ * Helper: tel een poging mee; het venster (seconden) begint bij elke poging opnieuw
+ */
+function lp_limiet_tel($actie, $sleutel, $venster)
+{
+    $transient = lp_limiet_transient($actie, $sleutel);
+    set_transient($transient, (int) get_transient($transient) + 1, $venster);
+}
+
+function lp_limiet_reset($actie, $sleutel)
+{
+    delete_transient(lp_limiet_transient($actie, $sleutel));
+}
+
+function lp_limiet_transient($actie, $sleutel)
+{
+    return 'lp_limiet_' . $actie . '_' . md5(strtolower((string) $sleutel));
+}
+
 require_once LP_PATH . 'includes/registratie.php';
 require_once LP_PATH . 'includes/wachtwoord.php';
 require_once LP_PATH . 'includes/login.php';
@@ -53,7 +90,6 @@ require_once LP_PATH . 'includes/account.php';
 require_once LP_PATH . 'includes/afscherming.php';
 require_once LP_PATH . 'includes/mails.php';
 require_once LP_PATH . 'includes/admin.php';
-require_once LP_PATH . 'includes/migratie.php';
 
 // Admin bar uitschakelen per rol
 add_filter('show_admin_bar', function ($toon) {
@@ -67,10 +103,12 @@ add_filter('show_admin_bar', function ($toon) {
     return $toon;
 });
 
-// Assets laden
+// Assets laden — versie = wijzigingstijd van het bestand, zodat browsers na een deploy de nieuwe versie ophalen
 add_action('wp_enqueue_scripts', function () {
-    wp_enqueue_style('ledenportaal-css', LP_URL . 'assets/css/ledenportaal.css', [], LP_VERSION);
-    wp_enqueue_script('ledenportaal-js', LP_URL . 'assets/js/ledenportaal.js', ['jquery'], LP_VERSION, true);
+    $css = 'assets/css/ledenportaal.css';
+    $js  = 'assets/js/ledenportaal.js';
+    wp_enqueue_style('ledenportaal-css', LP_URL . $css, [], (string) (@filemtime(LP_PATH . $css) ?: LP_VERSION));
+    wp_enqueue_script('ledenportaal-js', LP_URL . $js, ['jquery'], (string) (@filemtime(LP_PATH . $js) ?: LP_VERSION), true);
 });
 
 // Activatie hook: stel standaard opties in

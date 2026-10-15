@@ -380,8 +380,7 @@ add_action( 'admin_init', function() {
     ] );
     register_setting( 'lp_instellingen', 'lp_registratie_rol', [
         'sanitize_callback' => function( $v ) {
-            $rollen = array_keys( get_editable_roles() );
-            return in_array( $v, $rollen, true ) ? $v : 'subscriber';
+            return isset( lp_ledenrollen()[ $v ] ) ? $v : 'subscriber';
         },
     ] );
     register_setting( 'lp_instellingen', 'lp_adminbar_uitschakelen', [
@@ -422,6 +421,26 @@ add_action( 'admin_init', function() {
 } );
 
 /**
+ * Helper: paginakeuze (select) met "Bekijk"-knop voor de instellingenpagina
+ */
+function lp_pagina_select( $naam, $huidig, $paginas, $lege_optie ) {
+    ?>
+    <select name="<?php echo esc_attr( $naam ); ?>" id="<?php echo esc_attr( $naam ); ?>">
+        <option value="0"><?php echo esc_html( $lege_optie ); ?></option>
+        <?php foreach ( $paginas as $pagina ) : ?>
+            <option value="<?php echo esc_attr( $pagina->ID ); ?>" <?php selected( $huidig, $pagina->ID ); ?>>
+                <?php echo esc_html( $pagina->post_title ); ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+    <?php if ( $huidig ) : ?>
+        <a href="<?php echo esc_url( get_permalink( $huidig ) ); ?>" target="_blank" class="button button-small" style="margin-left: 8px;">
+            <?php esc_html_e( 'Bekijk', 'mijn-ledenportaal' ); ?>
+        </a>
+    <?php endif;
+}
+
+/**
  * Admin pagina: Instellingen
  */
 function lp_admin_instellingen_pagina() {
@@ -443,7 +462,7 @@ function lp_admin_instellingen_pagina() {
     $alle_post_types       = get_post_types( [ 'public' => true ], 'objects' );
     $alle_taxonomieen      = get_taxonomies( [ 'public' => true ], 'objects' );
     $goedkeuring_flow      = get_option( 'lp_goedkeuring_flow', 'manual' );
-    $registratie_rol       = get_option( 'lp_registratie_rol', 'subscriber' );
+    $registratie_rol       = lp_registratie_rol();
     $adminbar_uitschakelen = (array) get_option( 'lp_adminbar_uitschakelen', [] );
     ?>
     <div class="wrap">
@@ -479,19 +498,7 @@ function lp_admin_instellingen_pagina() {
                         <label for="lp_login_pagina_id"><?php esc_html_e( 'Loginpagina', 'mijn-ledenportaal' ); ?></label>
                     </th>
                     <td>
-                        <select name="lp_login_pagina_id" id="lp_login_pagina_id">
-                            <option value="0"><?php esc_html_e( '— Selecteer pagina —', 'mijn-ledenportaal' ); ?></option>
-                            <?php foreach ( $alle_paginas as $pagina ) : ?>
-                                <option value="<?php echo esc_attr( $pagina->ID ); ?>" <?php selected( $login_id, $pagina->ID ); ?>>
-                                    <?php echo esc_html( $pagina->post_title ); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <?php if ( $login_id ) : ?>
-                            <a href="<?php echo esc_url( get_permalink( $login_id ) ); ?>" target="_blank" class="button button-small" style="margin-left: 8px;">
-                                <?php esc_html_e( 'Bekijk', 'mijn-ledenportaal' ); ?>
-                            </a>
-                        <?php endif; ?>
+                        <?php lp_pagina_select( 'lp_login_pagina_id', $login_id, $alle_paginas, __( '— Selecteer pagina —', 'mijn-ledenportaal' ) ); ?>
                     </td>
                 </tr>
                 <tr>
@@ -499,19 +506,7 @@ function lp_admin_instellingen_pagina() {
                         <label for="lp_account_pagina_id"><?php esc_html_e( 'Accountpagina', 'mijn-ledenportaal' ); ?></label>
                     </th>
                     <td>
-                        <select name="lp_account_pagina_id" id="lp_account_pagina_id">
-                            <option value="0"><?php esc_html_e( '— Selecteer pagina —', 'mijn-ledenportaal' ); ?></option>
-                            <?php foreach ( $alle_paginas as $pagina ) : ?>
-                                <option value="<?php echo esc_attr( $pagina->ID ); ?>" <?php selected( $account_id, $pagina->ID ); ?>>
-                                    <?php echo esc_html( $pagina->post_title ); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <?php if ( $account_id ) : ?>
-                            <a href="<?php echo esc_url( get_permalink( $account_id ) ); ?>" target="_blank" class="button button-small" style="margin-left: 8px;">
-                                <?php esc_html_e( 'Bekijk', 'mijn-ledenportaal' ); ?>
-                            </a>
-                        <?php endif; ?>
+                        <?php lp_pagina_select( 'lp_account_pagina_id', $account_id, $alle_paginas, __( '— Selecteer pagina —', 'mijn-ledenportaal' ) ); ?>
                     </td>
                 </tr>
                 <tr>
@@ -519,19 +514,7 @@ function lp_admin_instellingen_pagina() {
                         <label for="lp_na_login_pagina_id"><?php esc_html_e( 'Doorsturen na inloggen', 'mijn-ledenportaal' ); ?></label>
                     </th>
                     <td>
-                        <select name="lp_na_login_pagina_id" id="lp_na_login_pagina_id">
-                            <option value="0"><?php esc_html_e( '— Accountpagina (standaard) —', 'mijn-ledenportaal' ); ?></option>
-                            <?php foreach ( $alle_paginas as $pagina ) : ?>
-                                <option value="<?php echo esc_attr( $pagina->ID ); ?>" <?php selected( $na_login_id, $pagina->ID ); ?>>
-                                    <?php echo esc_html( $pagina->post_title ); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <?php if ( $na_login_id ) : ?>
-                            <a href="<?php echo esc_url( get_permalink( $na_login_id ) ); ?>" target="_blank" class="button button-small" style="margin-left: 8px;">
-                                <?php esc_html_e( 'Bekijk', 'mijn-ledenportaal' ); ?>
-                            </a>
-                        <?php endif; ?>
+                        <?php lp_pagina_select( 'lp_na_login_pagina_id', $na_login_id, $alle_paginas, __( '— Accountpagina (standaard) —', 'mijn-ledenportaal' ) ); ?>
                         <p class="description"><?php esc_html_e( 'Pagina waarnaar leden worden doorgestuurd na het inloggen. Standaard is dat de accountpagina.', 'mijn-ledenportaal' ); ?></p>
                     </td>
                 </tr>
@@ -540,19 +523,7 @@ function lp_admin_instellingen_pagina() {
                         <label for="lp_registratie_pagina_id"><?php esc_html_e( 'Registratiepagina', 'mijn-ledenportaal' ); ?></label>
                     </th>
                     <td>
-                        <select name="lp_registratie_pagina_id" id="lp_registratie_pagina_id">
-                            <option value="0"><?php esc_html_e( '— Selecteer pagina —', 'mijn-ledenportaal' ); ?></option>
-                            <?php foreach ( $alle_paginas as $pagina ) : ?>
-                                <option value="<?php echo esc_attr( $pagina->ID ); ?>" <?php selected( $registratie_id, $pagina->ID ); ?>>
-                                    <?php echo esc_html( $pagina->post_title ); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <?php if ( $registratie_id ) : ?>
-                            <a href="<?php echo esc_url( get_permalink( $registratie_id ) ); ?>" target="_blank" class="button button-small" style="margin-left: 8px;">
-                                <?php esc_html_e( 'Bekijk', 'mijn-ledenportaal' ); ?>
-                            </a>
-                        <?php endif; ?>
+                        <?php lp_pagina_select( 'lp_registratie_pagina_id', $registratie_id, $alle_paginas, __( '— Selecteer pagina —', 'mijn-ledenportaal' ) ); ?>
                     </td>
                 </tr>
                 <tr>
@@ -560,19 +531,7 @@ function lp_admin_instellingen_pagina() {
                         <label for="lp_wachtwoord_vergeten_pagina_id"><?php esc_html_e( 'Wachtwoord vergeten pagina', 'mijn-ledenportaal' ); ?></label>
                     </th>
                     <td>
-                        <select name="lp_wachtwoord_vergeten_pagina_id" id="lp_wachtwoord_vergeten_pagina_id">
-                            <option value="0"><?php esc_html_e( '— Selecteer pagina —', 'mijn-ledenportaal' ); ?></option>
-                            <?php foreach ( $alle_paginas as $pagina ) : ?>
-                                <option value="<?php echo esc_attr( $pagina->ID ); ?>" <?php selected( $wachtwoord_vergeten_id, $pagina->ID ); ?>>
-                                    <?php echo esc_html( $pagina->post_title ); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <?php if ( $wachtwoord_vergeten_id ) : ?>
-                            <a href="<?php echo esc_url( get_permalink( $wachtwoord_vergeten_id ) ); ?>" target="_blank" class="button button-small" style="margin-left: 8px;">
-                                <?php esc_html_e( 'Bekijk', 'mijn-ledenportaal' ); ?>
-                            </a>
-                        <?php endif; ?>
+                        <?php lp_pagina_select( 'lp_wachtwoord_vergeten_pagina_id', $wachtwoord_vergeten_id, $alle_paginas, __( '— Selecteer pagina —', 'mijn-ledenportaal' ) ); ?>
                     </td>
                 </tr>
                 <tr>
@@ -580,19 +539,7 @@ function lp_admin_instellingen_pagina() {
                         <label for="lp_nieuw_wachtwoord_pagina_id"><?php esc_html_e( 'Nieuw wachtwoord pagina', 'mijn-ledenportaal' ); ?></label>
                     </th>
                     <td>
-                        <select name="lp_nieuw_wachtwoord_pagina_id" id="lp_nieuw_wachtwoord_pagina_id">
-                            <option value="0"><?php esc_html_e( '— Selecteer pagina —', 'mijn-ledenportaal' ); ?></option>
-                            <?php foreach ( $alle_paginas as $pagina ) : ?>
-                                <option value="<?php echo esc_attr( $pagina->ID ); ?>" <?php selected( $nieuw_wachtwoord_id, $pagina->ID ); ?>>
-                                    <?php echo esc_html( $pagina->post_title ); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                        <?php if ( $nieuw_wachtwoord_id ) : ?>
-                            <a href="<?php echo esc_url( get_permalink( $nieuw_wachtwoord_id ) ); ?>" target="_blank" class="button button-small" style="margin-left: 8px;">
-                                <?php esc_html_e( 'Bekijk', 'mijn-ledenportaal' ); ?>
-                            </a>
-                        <?php endif; ?>
+                        <?php lp_pagina_select( 'lp_nieuw_wachtwoord_pagina_id', $nieuw_wachtwoord_id, $alle_paginas, __( '— Selecteer pagina —', 'mijn-ledenportaal' ) ); ?>
                     </td>
                 </tr>
                 <tr>
@@ -620,13 +567,13 @@ function lp_admin_instellingen_pagina() {
                     </th>
                     <td>
                         <select name="lp_registratie_rol" id="lp_registratie_rol">
-                            <?php foreach ( get_editable_roles() as $rol_slug => $rol_info ) : ?>
+                            <?php foreach ( lp_ledenrollen() as $rol_slug => $rol_info ) : ?>
                                 <option value="<?php echo esc_attr( $rol_slug ); ?>" <?php selected( $registratie_rol, $rol_slug ); ?>>
                                     <?php echo esc_html( translate_user_role( $rol_info['name'] ) ); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
-                        <p class="description"><?php esc_html_e( 'De WordPress-rol die nieuwe leden krijgen na registratie.', 'mijn-ledenportaal' ); ?></p>
+                        <p class="description"><?php esc_html_e( 'De WordPress-rol die nieuwe leden krijgen na registratie of import. Rollen die berichten kunnen bewerken (zoals beheerder of redacteur) zijn uitgesloten.', 'mijn-ledenportaal' ); ?></p>
                     </td>
                 </tr>
                 <tr>
@@ -656,7 +603,7 @@ function lp_admin_instellingen_pagina() {
                             <input type="checkbox" name="lp_beveilig_alles" value="1" <?php checked( $beveilig_alles, '1' ); ?>>
                             <?php esc_html_e( 'Beveilig de hele website', 'mijn-ledenportaal' ); ?>
                         </label>
-                        <p class="description" style="margin-top: 4px;"><?php esc_html_e( 'Alle pagina\'s, archieven en Elementor-templates zijn alleen toegankelijk voor ingelogde leden. De login-, registratie- en wachtwoordpagina\'s blijven altijd bereikbaar.', 'mijn-ledenportaal' ); ?></p>
+                        <p class="description" style="margin-top: 4px;"><?php esc_html_e( 'Alle pagina\'s, archieven en Elementor-templates zijn alleen toegankelijk voor ingelogde leden. De homepage en de login-, registratie- en wachtwoordpagina\'s blijven altijd bereikbaar.', 'mijn-ledenportaal' ); ?></p>
                     </td>
                 </tr>
                 <tr>
@@ -665,7 +612,7 @@ function lp_admin_instellingen_pagina() {
                     </th>
                     <td>
                         <textarea name="lp_uitgesloten_urls" id="lp_uitgesloten_urls" rows="6" class="large-text code"><?php echo esc_textarea( $uitgesloten_urls ); ?></textarea>
-                        <p class="description"><?php esc_html_e( 'Één URL-pad per regel, bijv. /over-ons of /nieuws/. Deze pagina\'s zijn altijd publiek toegankelijk, ook als "Beveilig de hele website" aan staat. Gebruik * als wildcard, bijv. /nieuws/*.', 'mijn-ledenportaal' ); ?></p>
+                        <p class="description"><?php esc_html_e( 'Één URL-pad per regel, bijv. /over-ons of /nieuws/. Deze pagina\'s zijn altijd publiek toegankelijk, ook als "Beveilig de hele website" aan staat. Gebruik * als wildcard, bijv. /nieuws/* voor /nieuws en alles daaronder.', 'mijn-ledenportaal' ); ?></p>
                     </td>
                 </tr>
                 <tr>
@@ -726,41 +673,6 @@ function lp_admin_instellingen_pagina() {
 
             <?php submit_button( __( 'Instellingen opslaan', 'mijn-ledenportaal' ) ); ?>
         </form>
-
-        <hr style="margin: 32px 0;">
-
-        <h2 id="lp-migratie"><?php esc_html_e( 'Eenmalige migratie: geboortedatum herstellen', 'mijn-ledenportaal' ); ?></h2>
-        <p style="max-width: 600px; color: #3c434a;"><?php esc_html_e( 'Het originele birth_date veld (formaat M/D/YYYY) opnieuw inlezen en correct opslaan als lp_geboortedatum (YYYY-MM-DD). Kan meerdere keren veilig uitgevoerd worden.', 'mijn-ledenportaal' ); ?></p>
-
-        <?php
-        $migratie = get_transient( 'lp_migratie_resultaat_' . get_current_user_id() );
-        if ( $migratie !== false ) {
-            delete_transient( 'lp_migratie_resultaat_' . get_current_user_id() );
-            echo '<div class="notice notice-success is-dismissible"><p>';
-            printf(
-                esc_html__( 'Migratie voltooid: %1$d bijgewerkt, %2$d overgeslagen.', 'mijn-ledenportaal' ),
-                (int) $migratie['bijgewerkt'],
-                (int) $migratie['overgeslagen']
-            );
-            echo '</p></div>';
-            if ( ! empty( $migratie['fouten'] ) ) {
-                echo '<div class="notice notice-warning"><p><strong>' . esc_html__( 'Niet gemigreerd:', 'mijn-ledenportaal' ) . '</strong></p><ul style="list-style: disc; margin-left: 20px;">';
-                foreach ( $migratie['fouten'] as $fout ) {
-                    echo '<li>' . esc_html( $fout ) . '</li>';
-                }
-                echo '</ul></div>';
-            }
-        }
-        ?>
-
-        <form method="post">
-            <?php wp_nonce_field( 'lp_migreer_geboortedatum' ); ?>
-            <button type="submit" name="lp_migreer_geboortedatum" value="1" class="button button-secondary"
-                onclick="return confirm('<?php esc_attr_e( 'Geboortedatums herstellen vanuit birth_date? Dit overschrijft de huidige lp_geboortedatum waarden.', 'mijn-ledenportaal' ); ?>')">
-                <?php esc_html_e( 'Geboortedatums migreren vanuit birth_date', 'mijn-ledenportaal' ); ?>
-            </button>
-        </form>
-
     </div>
     <?php
 }
@@ -988,33 +900,58 @@ function lp_paginering( $huidige_pag, $paginas, $totaal, $basis_url ) {
 }
 
 /**
+ * Ledenbeheer-acties verwerken in admin_init en daarna redirecten (POST/redirect/GET).
+ * Zo verstuurt een refresh van de pagina het formulier niet opnieuw, en gaan statusmails
+ * alleen de deur uit bij een echte statuswijziging.
+ */
+add_action( 'admin_init', function() {
+    if ( ( $_GET['page'] ?? '' ) !== 'lp-ledenbeheer' || ! isset( $_POST['lp_ledenbeheer_actie'] ) ) return;
+    if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Geen toegang.' );
+    check_admin_referer( 'lp_ledenbeheer', 'lp_ledenbeheer_nonce' );
+
+    $actie   = sanitize_key( $_POST['lp_ledenbeheer_actie'] );
+    $user_id = absint( $_POST['lp_user_id'] ?? 0 );
+    $melding = '';
+
+    if ( $user_id && get_userdata( $user_id ) ) {
+        $huidige_status = get_user_meta( $user_id, 'lp_account_status', true );
+
+        if ( $actie === 'goedkeuren' || $actie === 'afwijzen' ) {
+            $nieuwe_status = $actie === 'goedkeuren' ? 'approved' : 'rejected';
+            if ( $huidige_status === $nieuwe_status ) {
+                $melding = 'ongewijzigd';
+            } else {
+                update_user_meta( $user_id, 'lp_account_status', $nieuwe_status );
+                do_action( $actie === 'goedkeuren' ? 'lp_account_goedgekeurd' : 'lp_account_afgewezen', $user_id );
+                $melding = $actie === 'goedkeuren' ? 'goedgekeurd' : 'afgewezen';
+            }
+        } elseif ( $actie === 'testaccount_aan' ) {
+            update_user_meta( $user_id, 'lp_is_testaccount', '1' );
+        } elseif ( $actie === 'testaccount_uit' ) {
+            delete_user_meta( $user_id, 'lp_is_testaccount' );
+        }
+    }
+
+    // Terug naar dezelfde pagina, met behoud van filter, zoekterm en paginanummer
+    $terug = remove_query_arg( 'lp_melding' );
+    wp_safe_redirect( $melding ? add_query_arg( 'lp_melding', $melding, $terug ) : $terug );
+    exit;
+} );
+
+/**
  * Admin pagina: Ledenbeheer
  */
 function lp_admin_ledenbeheer_pagina() {
     if ( ! current_user_can( 'manage_options' ) ) return;
 
-    // Verwerk goedkeuren / afwijzen
-    if ( isset( $_POST['lp_ledenbeheer_actie'] ) && isset( $_POST['lp_ledenbeheer_nonce'] ) ) {
-        if ( wp_verify_nonce( $_POST['lp_ledenbeheer_nonce'], 'lp_ledenbeheer' ) ) {
-            $actie   = sanitize_key( $_POST['lp_ledenbeheer_actie'] );
-            $user_id = absint( $_POST['lp_user_id'] ?? 0 );
-
-            if ( $user_id && in_array( $actie, [ 'goedkeuren', 'afwijzen', 'testaccount_aan', 'testaccount_uit' ], true ) ) {
-                if ( $actie === 'goedkeuren' ) {
-                    update_user_meta( $user_id, 'lp_account_status', 'approved' );
-                    do_action( 'lp_account_goedgekeurd', $user_id );
-                    echo '<div class="notice notice-success"><p>' . esc_html__( 'Account goedgekeurd.', 'mijn-ledenportaal' ) . '</p></div>';
-                } elseif ( $actie === 'afwijzen' ) {
-                    update_user_meta( $user_id, 'lp_account_status', 'rejected' );
-                    do_action( 'lp_account_afgewezen', $user_id );
-                    echo '<div class="notice notice-warning"><p>' . esc_html__( 'Account afgewezen.', 'mijn-ledenportaal' ) . '</p></div>';
-                } elseif ( $actie === 'testaccount_aan' ) {
-                    update_user_meta( $user_id, 'lp_is_testaccount', '1' );
-                } elseif ( $actie === 'testaccount_uit' ) {
-                    delete_user_meta( $user_id, 'lp_is_testaccount' );
-                }
-            }
-        }
+    $meldingen = [
+        'goedgekeurd' => [ 'success', __( 'Account goedgekeurd.', 'mijn-ledenportaal' ) ],
+        'afgewezen'   => [ 'warning', __( 'Account afgewezen.', 'mijn-ledenportaal' ) ],
+        'ongewijzigd' => [ 'info',    __( 'Dit account had die status al; er is geen mail verstuurd.', 'mijn-ledenportaal' ) ],
+    ];
+    $melding = $meldingen[ sanitize_key( $_GET['lp_melding'] ?? '' ) ] ?? null;
+    if ( $melding ) {
+        echo '<div class="notice notice-' . esc_attr( $melding[0] ) . ' is-dismissible"><p>' . esc_html( $melding[1] ) . '</p></div>';
     }
 
     $filter_status = sanitize_key( $_GET['lp_filter'] ?? 'all' );
@@ -1036,7 +973,9 @@ function lp_admin_ledenbeheer_pagina() {
         $basis_args['search_columns'] = [ 'user_login', 'user_email', 'display_name', 'user_nicename' ];
     }
 
-    $totaal      = count( get_users( array_merge( $basis_args, [ 'fields' => 'ID' ] ) ) );
+    // Alleen tellen (SQL_CALC_FOUND_ROWS), niet alle IDs ophalen
+    $telling     = new WP_User_Query( array_merge( $basis_args, [ 'fields' => 'ID', 'number' => 1, 'count_total' => true ] ) );
+    $totaal      = (int) $telling->get_total();
     $paginas     = max( 1, (int) ceil( $totaal / $per_pagina ) );
     $huidige_pag = min( $huidige_pag, $paginas );
 
@@ -1399,6 +1338,23 @@ function lp_admin_formuliervelden_pagina() {
 // ──────────────────────────────────────────────────────────────
 
 /**
+ * CSV-injectie voorkomen: een waarde die begint met = + - @ of een tab/return wordt door Excel als
+ * formule uitgevoerd. Zet er een ' voor, zodat het als tekst wordt getoond (OWASP-aanbeveling).
+ */
+function lp_csv_veilig( $waarde ) {
+    $waarde = (string) $waarde;
+    return ( $waarde !== '' && strpbrk( $waarde[0], "=+-@\t\r" ) !== false ) ? "'" . $waarde : $waarde;
+}
+
+/**
+ * Tegenhanger van lp_csv_veilig() voor de import: haal de beschermende ' weer weg
+ */
+function lp_csv_terug( $waarde ) {
+    $waarde = (string) $waarde;
+    return ( strlen( $waarde ) > 1 && $waarde[0] === "'" && strpbrk( $waarde[1], "=+-@\t\r" ) !== false ) ? substr( $waarde, 1 ) : $waarde;
+}
+
+/**
  * Geeft alle exporteerbare velden terug: slug => label
  */
 function lp_export_velden() {
@@ -1514,7 +1470,7 @@ function lp_export_uitvoeren() {
                 $rij[]  = is_array( $waarde ) ? implode( ', ', $waarde ) : (string) $waarde;
             }
         }
-        fputcsv( $output, $rij, ';' );
+        fputcsv( $output, array_map( 'lp_csv_veilig', $rij ), ';' );
     }
 
     fclose( $output );
@@ -1529,51 +1485,6 @@ add_action( 'admin_init', function() {
         ! isset( $_POST['lp_export_submit'] )
     ) return;
     lp_export_uitvoeren();
-} );
-
-add_action( 'admin_init', function() {
-    if (
-        ! is_admin() ||
-        ( $_GET['page'] ?? '' ) !== 'ledenportaal' ||
-        ! isset( $_POST['lp_migreer_geboortedatum'] )
-    ) return;
-    if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Geen toegang.' );
-    check_admin_referer( 'lp_migreer_geboortedatum' );
-
-    $gebruikers = get_users( [
-        'meta_key'     => 'birth_date',
-        'meta_compare' => 'EXISTS',
-        'fields'       => [ 'ID' ],
-        'number'       => -1,
-    ] );
-
-    $bijgewerkt = 0;
-    $overgeslagen = 0;
-    $fouten = [];
-
-    foreach ( $gebruikers as $u ) {
-        $origineel = get_user_meta( $u->ID, 'birth_date', true );
-        if ( empty( $origineel ) ) { $overgeslagen++; continue; }
-
-        $datum = DateTime::createFromFormat( 'n/j/Y', $origineel )
-              ?: DateTime::createFromFormat( 'm/d/Y', $origineel )
-              ?: DateTime::createFromFormat( 'n/j/y', $origineel )
-              ?: DateTime::createFromFormat( 'Y/m/d', $origineel );
-
-        if ( ! $datum ) {
-            $fouten[] = 'Gebruiker #' . $u->ID . ': onbekend formaat "' . esc_html( $origineel ) . '"';
-            continue;
-        }
-
-        update_user_meta( $u->ID, 'lp_geboortedatum', $datum->format( 'Y-m-d' ) );
-        $bijgewerkt++;
-    }
-
-    $resultaat = compact( 'bijgewerkt', 'overgeslagen', 'fouten' );
-    set_transient( 'lp_migratie_resultaat_' . get_current_user_id(), $resultaat, 60 );
-
-    wp_redirect( admin_url( 'admin.php?page=ledenportaal#lp-migratie' ) );
-    exit;
 } );
 
 /**
@@ -1644,14 +1555,7 @@ function lp_admin_import_pagina() {
                             <option value="registratie"><?php esc_html_e( 'Registratiebevestiging sturen', 'mijn-ledenportaal' ); ?></option>
                             <option value="wachtwoord_instellen" selected><?php esc_html_e( 'Link om wachtwoord in te stellen sturen', 'mijn-ledenportaal' ); ?></option>
                         </select>
-                        <p class="description"><?php esc_html_e( 'Bij "wachtwoord instellen" wordt het wachtwoordveld genegeerd en krijgt de gebruiker een e-mail met een persoonlijke link.', 'mijn-ledenportaal' ); ?></p>
-                    </td>
-                </tr>
-                <tr id="lp-import-ww-rij">
-                    <th scope="row"><label for="lp_import_wachtwoord"><?php esc_html_e( 'Standaard wachtwoord', 'mijn-ledenportaal' ); ?></label></th>
-                    <td>
-                        <input type="text" name="lp_import_wachtwoord" id="lp_import_wachtwoord" value="" class="regular-text" placeholder="<?php esc_attr_e( 'Leeg = automatisch genereren', 'mijn-ledenportaal' ); ?>">
-                        <p class="description"><?php esc_html_e( 'Alleen van toepassing als er geen mail wordt gestuurd of bij registratiebevestiging.', 'mijn-ledenportaal' ); ?></p>
+                        <p class="description"><?php esc_html_e( 'Nieuwe accounts krijgen altijd een willekeurig wachtwoord. Zonder wachtwoord-instellen-link stelt het lid zelf een wachtwoord in via "Wachtwoord vergeten".', 'mijn-ledenportaal' ); ?></p>
                     </td>
                 </tr>
                 <tr>
@@ -1663,7 +1567,12 @@ function lp_admin_import_pagina() {
                             <option value="approved"><?php esc_html_e( 'Goedgekeurd', 'mijn-ledenportaal' ); ?></option>
                             <option value="rejected"><?php esc_html_e( 'Afgewezen', 'mijn-ledenportaal' ); ?></option>
                         </select>
-                        <p class="description"><?php esc_html_e( 'Als je hier een waarde kiest, wordt die voor alle geïmporteerde rijen gebruikt (ook bij bestaande gebruikers).', 'mijn-ledenportaal' ); ?></p>
+                        <p class="description"><?php esc_html_e( 'Als je hier een waarde kiest, wordt die gebruikt voor alle nieuw aangemaakte accounts.', 'mijn-ledenportaal' ); ?></p>
+                        <label style="display: block; margin-top: 8px;">
+                            <input type="checkbox" name="lp_import_status_bestaand" value="1">
+                            <?php esc_html_e( 'Ook toepassen op bestaande leden', 'mijn-ledenportaal' ); ?>
+                        </label>
+                        <p class="description"><?php esc_html_e( 'Let op: hiermee krijgen alle bestaande leden in het bestand deze status. "In afwachting" of "Afgewezen" sluit ze buiten.', 'mijn-ledenportaal' ); ?></p>
                     </td>
                 </tr>
             </table>
@@ -1696,17 +1605,6 @@ function lp_admin_import_pagina() {
             </tbody>
         </table>
     </div>
-    <script>
-    (function() {
-        var mailSelect = document.getElementById('lp_import_mail');
-        var wwRij      = document.getElementById('lp-import-ww-rij');
-        function toggleWw() {
-            wwRij.style.display = mailSelect.value === 'wachtwoord_instellen' ? 'none' : '';
-        }
-        mailSelect.addEventListener('change', toggleWw);
-        toggleWw();
-    })();
-    </script>
     <?php
 }
 
@@ -1725,6 +1623,10 @@ function lp_import_uitvoeren() {
         $resultaten['fouten'][] = __( 'Geen geldig bestand geüpload.', 'mijn-ledenportaal' );
         return $resultaten;
     }
+
+    // Een grote import met een mail per rij kan lang duren; voorkom dat PHP halverwege afbreekt
+    wp_raise_memory_limit( 'admin' );
+    if ( function_exists( 'set_time_limit' ) ) set_time_limit( 0 );
 
     $handle = fopen( $_FILES['lp_import_bestand']['tmp_name'], 'r' );
     if ( ! $handle ) {
@@ -1773,8 +1675,9 @@ function lp_import_uitvoeren() {
 
     $toevoegen        = ! empty( $_POST['lp_import_toevoegen'] );
     $mail_optie       = sanitize_key( $_POST['lp_import_mail'] ?? '' );
-    $standaard_ww     = $mail_optie === 'wachtwoord_instellen' ? '' : sanitize_text_field( $_POST['lp_import_wachtwoord'] ?? '' );
     $standaard_status = sanitize_text_field( $_POST['lp_import_status'] ?? '' );
+    // Overschreven status geldt alleen voor bestaande leden als dat expliciet is aangevinkt
+    $status_bestaand  = ! empty( $_POST['lp_import_status_bestaand'] ) ? $standaard_status : '';
     $geldig_statussen = [ 'pending', 'approved', 'rejected' ];
 
     $meta_velden = [
@@ -1792,7 +1695,7 @@ function lp_import_uitvoeren() {
         // Rij omzetten naar veld => waarde
         $data = [];
         foreach ( $kolom_map as $i => $slug ) {
-            $data[ $slug ] = isset( $rij[ $i ] ) ? trim( $rij[ $i ] ) : '';
+            $data[ $slug ] = isset( $rij[ $i ] ) ? lp_csv_terug( trim( $rij[ $i ] ) ) : '';
         }
 
         // E-mailadres valideren — sanitize_email() maakt van een ongeldig adres een lege string,
@@ -1800,7 +1703,8 @@ function lp_import_uitvoeren() {
         $email = '';
         if ( ! empty( $data['user_email'] ) ) {
             $email = sanitize_email( $data['user_email'] );
-            if ( ! is_email( $email ) ) {
+            // sanitize_email() kan tekens weghalen; dan is het een ander adres dan in de CSV staat
+            if ( ! is_email( $email ) || $email !== $data['user_email'] ) {
                 $resultaten['fouten'][]  = sprintf( __( 'Rij %1$d: ongeldig e-mailadres "%2$s".', 'mijn-ledenportaal' ), $rij_nummer, $data['user_email'] );
                 $resultaten['overgeslagen']++;
                 continue;
@@ -1839,7 +1743,7 @@ function lp_import_uitvoeren() {
                 continue;
             }
 
-            lp_import_meta_opslaan( $gebruiker_id, $data, $meta_velden, $standaard_status, $geldig_statussen );
+            lp_import_meta_opslaan( $gebruiker_id, $data, $meta_velden, $status_bestaand, $geldig_statussen );
             $resultaten['bijgewerkt']++;
 
         } elseif ( $toevoegen ) {
@@ -1851,7 +1755,8 @@ function lp_import_uitvoeren() {
                 continue;
             }
 
-            $login = ! empty( $data['user_login'] ) ? sanitize_user( $data['user_login'] ) : sanitize_user( $email );
+            // Zonder gebruikersnaam in de CSV: unieke naam op basis van het e-mailadres
+            $login = ! empty( $data['user_login'] ) ? sanitize_user( $data['user_login'] ) : lp_unieke_gebruikersnaam( $email );
             if ( username_exists( $login ) ) {
                 $resultaten['fouten'][]  = sprintf( __( 'Rij %1$d: gebruikersnaam %2$s is al in gebruik bij een ander account.', 'mijn-ledenportaal' ), $rij_nummer, $login );
                 $resultaten['overgeslagen']++;
@@ -1863,8 +1768,9 @@ function lp_import_uitvoeren() {
                 'user_email' => $email,
                 'first_name' => sanitize_text_field( $data['first_name'] ?? '' ),
                 'last_name'  => sanitize_text_field( $data['last_name'] ?? '' ),
-                'user_pass'  => ! empty( $standaard_ww ) ? $standaard_ww : wp_generate_password( 16 ),
-                'role'       => get_option( 'lp_registratie_rol', 'subscriber' ),
+                // Nooit een gedeeld standaardwachtwoord: het lid stelt zelf een wachtwoord in
+                'user_pass'  => wp_generate_password( 24 ),
+                'role'       => lp_registratie_rol(),
             ];
 
             $nieuw_id = wp_insert_user( $user_args );
@@ -1941,7 +1847,11 @@ function lp_import_stuur_wachtwoord_mail( $user_id ) {
     $reset_key = get_password_reset_key( $user );
     if ( is_wp_error( $reset_key ) ) return;
 
-    $reset_url = network_site_url( 'wp-login.php?action=rp&key=' . $reset_key . '&login=' . rawurlencode( $user->user_login ), 'login' );
+    // Zelfde link als bij "wachtwoord vergeten": de eigen pagina, met wp-login.php als terugval
+    $nieuw_wachtwoord_id = (int) get_option( 'lp_nieuw_wachtwoord_pagina_id', 0 );
+    $reset_url = $nieuw_wachtwoord_id
+        ? add_query_arg( [ 'key' => $reset_key, 'login' => rawurlencode( $user->user_login ) ], get_permalink( $nieuw_wachtwoord_id ) )
+        : network_site_url( 'wp-login.php?action=rp&key=' . $reset_key . '&login=' . rawurlencode( $user->user_login ), 'login' );
     $site_naam = get_bloginfo( 'name' );
 
     $onderwerp = sprintf( __( 'Stel je wachtwoord in voor %s', 'mijn-ledenportaal' ), $site_naam );
