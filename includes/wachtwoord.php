@@ -182,12 +182,10 @@ function lp_mail_wachtwoord_reset( WP_User $gebruiker, string $reset_url ) {
         'extra'     => [ '{{reset_url}}' => $reset_url ],
     ];
 
-    add_filter( 'wp_mail_content_type', fn() => 'text/html' );
     wp_mail(
         $gebruiker->user_email,
         lp_mail_onderwerp( 'wachtwoord_reset', $data ),
         lp_mail_template( 'wachtwoord_reset', $data ),
         [ 'Content-Type: text/html; charset=UTF-8' ]
     );
-    remove_filter( 'wp_mail_content_type', fn() => 'text/html' );
 }

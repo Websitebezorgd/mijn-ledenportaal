@@ -170,10 +170,10 @@ function lp_migratie_um_gebruikers() {
 /**
  * Verzamel alle unieke meta-sleutels van UM-gebruikers
  */
-function lp_migratie_detecteer_sleutels() {
+function lp_migratie_detecteer_sleutels( $gebruikers = null ) {
     global $wpdb;
 
-    $gebruikers = lp_migratie_um_gebruikers();
+    $gebruikers = $gebruikers ?? lp_migratie_um_gebruikers();
     if ( empty( $gebruikers ) ) return [];
 
     $ids = array_map( fn( $u ) => $u->ID, $gebruikers );
@@ -188,8 +188,6 @@ function lp_migratie_detecteer_sleutels() {
         'managenav-menuscolumnshidden', 'nav_menu_recently_edited',
     ];
 
-    $skip_like = array_map( fn( $s ) => "meta_key NOT LIKE '%" . esc_sql( $s ) . "%'", $skip );
-
     $query = $wpdb->prepare(
         "SELECT DISTINCT meta_key FROM {$wpdb->usermeta}
          WHERE user_id IN ($placeholders)
@@ -200,7 +198,13 @@ function lp_migratie_detecteer_sleutels() {
         ...$ids
     );
 
-    return $wpdb->get_col( $query );
+    // Systeemsleutels in PHP wegfilteren: als LIKE-patronen in prepare() botsen de %-tekens met de placeholders
+    return array_values( array_filter( $wpdb->get_col( $query ), function( $sleutel ) use ( $skip ) {
+        foreach ( $skip as $s ) {
+            if ( str_contains( $sleutel, $s ) ) return false;
+        }
+        return true;
+    } ) );
 }
 
 /**
@@ -245,7 +249,8 @@ function lp_admin_migratie_pagina() {
     $stap        = sanitize_key( $_GET['stap'] ?? '1' );
     $basis_url   = admin_url( 'admin.php?page=lp-migratie' );
     $lp_velden   = lp_migratie_velden();
-    $um_sleutels = lp_migratie_detecteer_sleutels();
+    $um_gebruikers = lp_migratie_um_gebruikers();
+    $um_sleutels   = lp_migratie_detecteer_sleutels( $um_gebruikers );
     // Gebruik de standaardkoppeling als er nog niets opgeslagen is
     $mapping     = get_option( 'lp_migratie_mapping', lp_migratie_standaard_mapping() );
     $melding     = '';
@@ -277,7 +282,7 @@ function lp_admin_migratie_pagina() {
         }
     }
 
-    $um_count = count( lp_migratie_um_gebruikers() );
+    $um_count = count( $um_gebruikers );
     ?>
     <div class="wrap">
         <h1><?php esc_html_e( 'Ledenportaal — Migratie vanuit Ultimate Member', 'mijn-ledenportaal' ); ?></h1>

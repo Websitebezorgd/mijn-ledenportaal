@@ -104,10 +104,12 @@ add_filter('show_admin_bar', function ($toon) {
     return $toon;
 });
 
-// Assets laden
+// Assets laden — versie = wijzigingstijd van het bestand, zodat browsers na een deploy de nieuwe versie ophalen
 add_action('wp_enqueue_scripts', function () {
-    wp_enqueue_style('ledenportaal-css', LP_URL . 'assets/css/ledenportaal.css', [], LP_VERSION);
-    wp_enqueue_script('ledenportaal-js', LP_URL . 'assets/js/ledenportaal.js', ['jquery'], LP_VERSION, true);
+    $css = 'assets/css/ledenportaal.css';
+    $js  = 'assets/js/ledenportaal.js';
+    wp_enqueue_style('ledenportaal-css', LP_URL . $css, [], (string) (@filemtime(LP_PATH . $css) ?: LP_VERSION));
+    wp_enqueue_script('ledenportaal-js', LP_URL . $js, ['jquery'], (string) (@filemtime(LP_PATH . $js) ?: LP_VERSION), true);
 });
 
 // Activatie hook: stel standaard opties in

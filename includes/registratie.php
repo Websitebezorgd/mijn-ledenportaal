@@ -38,6 +38,22 @@ function lp_unieke_gebruikersnaam( $email ) {
 }
 
 /**
+ * Rollen die nieuwe leden mogen krijgen: alleen rollen zonder edit_posts, zodat registratie of
+ * import nooit een beheerder of redacteur aanmaakt.
+ */
+function lp_ledenrollen() {
+    return array_filter( wp_roles()->roles, fn( $rol ) => empty( $rol['capabilities']['edit_posts'] ) );
+}
+
+/**
+ * Ingestelde rol voor nieuwe leden; valt terug op subscriber als de opgeslagen rol niet (meer) mag
+ */
+function lp_registratie_rol() {
+    $rol = get_option( 'lp_registratie_rol', 'subscriber' );
+    return isset( lp_ledenrollen()[ $rol ] ) ? $rol : 'subscriber';
+}
+
+/**
  * Dropdown opties — gedeeld met andere includes
  */
 function lp_geslacht_opties() {
@@ -133,9 +149,10 @@ function lp_verwerk_registratie() {
         exit;
     }
 
-    // Max. 5 nieuwe accounts per IP per uur
+    // Max. 5 nieuwe accounts per IP per uur, en max. 10 keer "al geregistreerd" (tegen het aftasten
+    // van welke adressen lid zijn)
     $ip = lp_client_ip();
-    if ( lp_limiet_bereikt( 'registratie', $ip, 5 ) ) {
+    if ( lp_limiet_bereikt( 'registratie', $ip, 5 ) || lp_limiet_bereikt( 'registratie_bestaand', $ip, 10 ) ) {
         $token = lp_sla_fouten_op( 'registratie', [ __( 'Er zijn vanaf dit adres te veel aanmeldingen gedaan. Probeer het later opnieuw.', 'mijn-ledenportaal' ) ] );
         wp_safe_redirect( add_query_arg( 'lp_fout_registratie', $token, lp_huidige_url() ) );
         exit;
@@ -172,7 +189,10 @@ function lp_verwerk_registratie() {
     if ( empty( $data['voornaam'] ) )   $fouten[] = __( 'Voornaam is verplicht.', 'mijn-ledenportaal' );
     if ( empty( $data['achternaam'] ) ) $fouten[] = __( 'Achternaam is verplicht.', 'mijn-ledenportaal' );
     if ( ! is_email( $data['email'] ) ) $fouten[] = __( 'Voer een geldig e-mailadres in.', 'mijn-ledenportaal' );
-    if ( email_exists( $data['email'] ) ) $fouten[] = __( 'Dit e-mailadres is al geregistreerd.', 'mijn-ledenportaal' );
+    if ( email_exists( $data['email'] ) ) {
+        lp_limiet_tel( 'registratie_bestaand', $ip, HOUR_IN_SECONDS );
+        $fouten[] = __( 'Dit e-mailadres is al geregistreerd. Ben je je wachtwoord vergeten? Vraag dan een nieuw wachtwoord aan.', 'mijn-ledenportaal' );
+    }
     if ( empty( $data['wachtwoord'] ) )             $fouten[] = __( 'Wachtwoord is verplicht.', 'mijn-ledenportaal' );
     if ( strlen( $data['wachtwoord'] ) < 8 )        $fouten[] = __( 'Wachtwoord moet minimaal 8 tekens bevatten.', 'mijn-ledenportaal' );
     if ( $data['wachtwoord'] !== $data['wachtwoord2'] ) $fouten[] = __( 'Wachtwoorden komen niet overeen.', 'mijn-ledenportaal' );
@@ -218,7 +238,7 @@ function lp_verwerk_registratie() {
         'first_name'   => $data['voornaam'],
         'last_name'    => $data['achternaam'],
         'display_name' => $data['voornaam'] . ' ' . $data['achternaam'],
-        'role'         => get_option( 'lp_registratie_rol', 'subscriber' ),
+        'role'         => lp_registratie_rol(),
     ] );
 
     if ( is_wp_error( $user_id ) ) {

@@ -73,6 +73,20 @@ function lp_verwerk_account() {
     if ( ! in_array( $soort_pensioen, array_keys( lp_pensioen_opties() ), true ) ) $soort_pensioen = '';
     if ( ! in_array( $land, array_keys( lp_land_opties() ), true ) )               $land = 'NL';
 
+    $geldige_functies = array_keys( lp_functie_opties() );
+    $functies         = array_values( array_intersect( array_map( 'sanitize_key', (array) ( $_POST['verenigingsfunctie'] ?? [] ) ), $geldige_functies ) );
+
+    // Verplichte velden uit de instellingen gelden ook bij het bijwerken, net als bij registratie
+    $te_controleren = compact( 'geslacht', 'geboortedatum', 'telefoonnummer', 'mobiel', 'straatnaam', 'huisnummer', 'huisnummer_toevoeging', 'postcode', 'plaats', 'land', 'afdeling', 'soort_pensioen' );
+    $te_controleren['verenigingsfunctie'] = $functies;
+    $labels = lp_configureerbare_velden();
+    foreach ( $te_controleren as $veld => $waarde ) {
+        if ( lp_veld_verplicht( $veld ) && empty( $waarde ) ) {
+            /* translators: %s: veldnaam */
+            $fouten[] = sprintf( __( '%s is verplicht.', 'mijn-ledenportaal' ), $labels[ $veld ] ?? $veld );
+        }
+    }
+
     if ( ! empty( $fouten ) ) {
         $token = lp_sla_fouten_op( 'account', $fouten );
         wp_safe_redirect( add_query_arg( 'lp_fout_account', $token, lp_huidige_url() ) );
@@ -111,19 +125,17 @@ function lp_verwerk_account() {
     update_user_meta( $user_id, 'lp_soort_pensioen',        $soort_pensioen );
 
     delete_user_meta( $user_id, 'lp_verenigingsfunctie' );
-    $geselecteerde_functies = array_map( 'sanitize_key', (array) ( $_POST['verenigingsfunctie'] ?? [] ) );
-    $geldige_functies = array_keys( lp_functie_opties() );
-    foreach ( $geselecteerde_functies as $keuze ) {
-        if ( in_array( $keuze, $geldige_functies, true ) ) {
-            add_user_meta( $user_id, 'lp_verenigingsfunctie', $keuze );
-        }
+    foreach ( $functies as $keuze ) {
+        add_user_meta( $user_id, 'lp_verenigingsfunctie', $keuze );
     }
 
-    $huidig_iban = get_user_meta( $user_id, 'lp_iban', true );
+    $huidige_toestemming = get_user_meta( $user_id, 'lp_incasso_toestemming', true );
     update_user_meta( $user_id, 'lp_iban',              $iban );
     update_user_meta( $user_id, 'lp_iban_ten_name_van', $iban_ten_name_van );
     update_user_meta( $user_id, 'lp_incasso_toestemming', $incasso_toestemming );
-    if ( $incasso_toestemming === '1' && $iban !== $huidig_iban ) {
+    // Datum vastleggen bij nieuwe toestemming, of bij toestemming voor een ander IBAN. $iban_gewijzigd
+    // vergelijkt genormaliseerd, zodat een opgeslagen IBAN met spaties niet als wijziging telt.
+    if ( $incasso_toestemming === '1' && ( $iban_gewijzigd || $huidige_toestemming !== '1' ) ) {
         update_user_meta( $user_id, 'lp_incasso_toestemming_datum', current_time( 'Y-m-d H:i:s', true ) );
     }
 
