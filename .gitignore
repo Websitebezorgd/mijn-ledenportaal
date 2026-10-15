@@ -12,3 +12,5 @@ Thumbs.db
 
 # Local Sites specifiek
 *.log
+# Exports/imports met ledengegevens nooit committen
+*.csv

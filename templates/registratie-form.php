@@ -54,6 +54,12 @@ $ster = function( $sleutel ) use ( $verplicht ) {
         <form class="lp-form" method="post" novalidate>
             <?php wp_nonce_field( 'lp_registratie', 'lp_registratie_nonce' ); ?>
 
+            <?php // Honeypot tegen spambots: onzichtbaar voor mensen, moet leeg blijven ?>
+            <div aria-hidden="true" style="position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden;">
+                <label for="lp-hp-veld"><?php esc_html_e( 'Laat dit veld leeg', 'mijn-ledenportaal' ); ?></label>
+                <input type="text" id="lp-hp-veld" name="lp_hp_veld" value="" tabindex="-1" autocomplete="off">
+            </div>
+
             <h5 class="lp-sectie-titel"><?php esc_html_e( 'Persoonlijke gegevens', 'mijn-ledenportaal' ); ?></h5>
 
             <div class="lp-rij lp-rij--2">
