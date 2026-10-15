@@ -68,11 +68,16 @@ function lp_mail_template( $naam, $data = [] ) {
         $inhoud = $defaults[ $naam ]['inhoud'];
     }
 
-    $vars   = lp_mail_placeholders( $naam, $gebruiker, $extra );
+    // Waarden escapen: namen komen van leden zelf en horen als tekst in de HTML-mail.
+    // Placeholders die op _url}} eindigen zijn links en gaan door esc_url.
+    $vars = lp_mail_placeholders( $naam, $gebruiker, $extra );
+    foreach ( $vars as $sleutel => $waarde ) {
+        $vars[ $sleutel ] = str_ends_with( $sleutel, '_url}}' ) ? esc_url( $waarde ) : esc_html( $waarde );
+    }
     $inhoud = str_replace( array_keys( $vars ), array_values( $vars ), $inhoud );
 
-    $site_naam = get_bloginfo( 'name' );
-    $site_url  = home_url();
+    $site_naam = esc_html( get_bloginfo( 'name' ) );
+    $site_url  = esc_url( home_url() );
 
     return <<<HTML
 <!DOCTYPE html>
