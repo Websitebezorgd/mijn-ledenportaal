@@ -90,7 +90,6 @@ require_once LP_PATH . 'includes/account.php';
 require_once LP_PATH . 'includes/afscherming.php';
 require_once LP_PATH . 'includes/mails.php';
 require_once LP_PATH . 'includes/admin.php';
-require_once LP_PATH . 'includes/migratie.php';
 
 // Admin bar uitschakelen per rol
 add_filter('show_admin_bar', function ($toon) {
