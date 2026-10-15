@@ -266,6 +266,18 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             <p class="lp-veld-hint"><?php esc_html_e( 'Laat leeg als je je wachtwoord niet wilt wijzigen.', 'mijn-ledenportaal' ); ?></p>
 
             <div class="lp-form-groep">
+                <label class="lp-label" for="lp-huidig-wachtwoord"><?php esc_html_e( 'Huidig wachtwoord', 'mijn-ledenportaal' ); ?></label>
+                <div class="lp-wachtwoord-wrap">
+                    <input class="lp-input" type="password" id="lp-huidig-wachtwoord" name="huidig_wachtwoord"
+                        autocomplete="current-password">
+                    <button type="button" class="lp-wachtwoord-toggle" data-target="lp-huidig-wachtwoord" aria-label="<?php esc_attr_e( 'Toon wachtwoord', 'mijn-ledenportaal' ); ?>">
+                        <span class="lp-oog-icon">&#128065;</span>
+                    </button>
+                </div>
+                <p class="lp-veld-hint"><?php esc_html_e( 'Nodig om een nieuw wachtwoord in te stellen.', 'mijn-ledenportaal' ); ?></p>
+            </div>
+
+            <div class="lp-form-groep">
                 <label class="lp-label" for="lp-nieuw-wachtwoord"><?php esc_html_e( 'Nieuw wachtwoord', 'mijn-ledenportaal' ); ?></label>
                 <div class="lp-wachtwoord-wrap">
                     <input class="lp-input" type="password" id="lp-nieuw-wachtwoord" name="nieuw_wachtwoord"

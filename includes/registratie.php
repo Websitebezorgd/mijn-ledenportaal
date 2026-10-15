@@ -21,6 +21,23 @@ function lp_valideer_iban( $iban ) {
 }
 
 /**
+ * Unieke gebruikersnaam op basis van het e-mailadres.
+ *
+ * Het e-mailadres zelf kan al als gebruikersnaam bestaan bij een account waarvan het adres later
+ * is gewijzigd; dan wordt er een volgnummer achter gezet (jan@voorbeeld.nl-2). Inloggen gaat
+ * via het e-mailadres, dus de gebruikersnaam ziet het lid niet.
+ */
+function lp_unieke_gebruikersnaam( $email ) {
+    // Zelfde strikte opschoning als wp_insert_user, zodat de controle klopt met wat er wordt opgeslagen
+    $basis = substr( sanitize_user( $email, true ), 0, 50 ) ?: 'lid';
+    $login = $basis;
+    for ( $i = 2; username_exists( $login ); $i++ ) {
+        $login = $basis . '-' . $i;
+    }
+    return $login;
+}
+
+/**
  * Dropdown opties — gedeeld met andere includes
  */
 function lp_geslacht_opties() {
@@ -110,6 +127,20 @@ function lp_verwerk_registratie() {
         exit;
     }
 
+    // Honeypot ingevuld → vrijwel zeker een bot. Doe alsof het gelukt is, zodat de bot niet bijleert.
+    if ( ! empty( $_POST['lp_hp_veld'] ) ) {
+        wp_safe_redirect( add_query_arg( 'lp_succes', 'registratie', lp_huidige_url() ) );
+        exit;
+    }
+
+    // Max. 5 nieuwe accounts per IP per uur
+    $ip = lp_client_ip();
+    if ( lp_limiet_bereikt( 'registratie', $ip, 5 ) ) {
+        $token = lp_sla_fouten_op( 'registratie', [ __( 'Er zijn vanaf dit adres te veel aanmeldingen gedaan. Probeer het later opnieuw.', 'mijn-ledenportaal' ) ] );
+        wp_safe_redirect( add_query_arg( 'lp_fout_registratie', $token, lp_huidige_url() ) );
+        exit;
+    }
+
     // Saniteer input
     $data = [
         'voornaam'              => sanitize_text_field( $_POST['voornaam'] ?? '' ),
@@ -141,8 +172,7 @@ function lp_verwerk_registratie() {
     if ( empty( $data['voornaam'] ) )   $fouten[] = __( 'Voornaam is verplicht.', 'mijn-ledenportaal' );
     if ( empty( $data['achternaam'] ) ) $fouten[] = __( 'Achternaam is verplicht.', 'mijn-ledenportaal' );
     if ( ! is_email( $data['email'] ) ) $fouten[] = __( 'Voer een geldig e-mailadres in.', 'mijn-ledenportaal' );
-    // Het e-mailadres wordt ook als gebruikersnaam gebruikt; een oud adres kan nog als gebruikersnaam bestaan
-    if ( email_exists( $data['email'] ) || username_exists( $data['email'] ) ) $fouten[] = __( 'Dit e-mailadres is al geregistreerd.', 'mijn-ledenportaal' );
+    if ( email_exists( $data['email'] ) ) $fouten[] = __( 'Dit e-mailadres is al geregistreerd.', 'mijn-ledenportaal' );
     if ( empty( $data['wachtwoord'] ) )             $fouten[] = __( 'Wachtwoord is verplicht.', 'mijn-ledenportaal' );
     if ( strlen( $data['wachtwoord'] ) < 8 )        $fouten[] = __( 'Wachtwoord moet minimaal 8 tekens bevatten.', 'mijn-ledenportaal' );
     if ( $data['wachtwoord'] !== $data['wachtwoord2'] ) $fouten[] = __( 'Wachtwoorden komen niet overeen.', 'mijn-ledenportaal' );
@@ -182,7 +212,7 @@ function lp_verwerk_registratie() {
 
     // Aanmaken gebruiker
     $user_id = wp_insert_user( [
-        'user_login'   => $data['email'],
+        'user_login'   => lp_unieke_gebruikersnaam( $data['email'] ),
         'user_email'   => $data['email'],
         'user_pass'    => $data['wachtwoord'],
         'first_name'   => $data['voornaam'],
@@ -196,6 +226,8 @@ function lp_verwerk_registratie() {
         wp_safe_redirect( add_query_arg( 'lp_fout_registratie', $token, lp_huidige_url() ) );
         exit;
     }
+
+    lp_limiet_tel( 'registratie', $ip, HOUR_IN_SECONDS );
 
     // Sla meta op
     update_user_meta( $user_id, 'lp_geslacht',              $data['geslacht'] );

@@ -988,33 +988,58 @@ function lp_paginering( $huidige_pag, $paginas, $totaal, $basis_url ) {
 }
 
 /**
+ * Ledenbeheer-acties verwerken in admin_init en daarna redirecten (POST/redirect/GET).
+ * Zo verstuurt een refresh van de pagina het formulier niet opnieuw, en gaan statusmails
+ * alleen de deur uit bij een echte statuswijziging.
+ */
+add_action( 'admin_init', function() {
+    if ( ( $_GET['page'] ?? '' ) !== 'lp-ledenbeheer' || ! isset( $_POST['lp_ledenbeheer_actie'] ) ) return;
+    if ( ! current_user_can( 'manage_options' ) ) wp_die( 'Geen toegang.' );
+    check_admin_referer( 'lp_ledenbeheer', 'lp_ledenbeheer_nonce' );
+
+    $actie   = sanitize_key( $_POST['lp_ledenbeheer_actie'] );
+    $user_id = absint( $_POST['lp_user_id'] ?? 0 );
+    $melding = '';
+
+    if ( $user_id && get_userdata( $user_id ) ) {
+        $huidige_status = get_user_meta( $user_id, 'lp_account_status', true );
+
+        if ( $actie === 'goedkeuren' || $actie === 'afwijzen' ) {
+            $nieuwe_status = $actie === 'goedkeuren' ? 'approved' : 'rejected';
+            if ( $huidige_status === $nieuwe_status ) {
+                $melding = 'ongewijzigd';
+            } else {
+                update_user_meta( $user_id, 'lp_account_status', $nieuwe_status );
+                do_action( $actie === 'goedkeuren' ? 'lp_account_goedgekeurd' : 'lp_account_afgewezen', $user_id );
+                $melding = $actie === 'goedkeuren' ? 'goedgekeurd' : 'afgewezen';
+            }
+        } elseif ( $actie === 'testaccount_aan' ) {
+            update_user_meta( $user_id, 'lp_is_testaccount', '1' );
+        } elseif ( $actie === 'testaccount_uit' ) {
+            delete_user_meta( $user_id, 'lp_is_testaccount' );
+        }
+    }
+
+    // Terug naar dezelfde pagina, met behoud van filter, zoekterm en paginanummer
+    $terug = remove_query_arg( 'lp_melding' );
+    wp_safe_redirect( $melding ? add_query_arg( 'lp_melding', $melding, $terug ) : $terug );
+    exit;
+} );
+
+/**
  * Admin pagina: Ledenbeheer
  */
 function lp_admin_ledenbeheer_pagina() {
     if ( ! current_user_can( 'manage_options' ) ) return;
 
-    // Verwerk goedkeuren / afwijzen
-    if ( isset( $_POST['lp_ledenbeheer_actie'] ) && isset( $_POST['lp_ledenbeheer_nonce'] ) ) {
-        if ( wp_verify_nonce( $_POST['lp_ledenbeheer_nonce'], 'lp_ledenbeheer' ) ) {
-            $actie   = sanitize_key( $_POST['lp_ledenbeheer_actie'] );
-            $user_id = absint( $_POST['lp_user_id'] ?? 0 );
-
-            if ( $user_id && in_array( $actie, [ 'goedkeuren', 'afwijzen', 'testaccount_aan', 'testaccount_uit' ], true ) ) {
-                if ( $actie === 'goedkeuren' ) {
-                    update_user_meta( $user_id, 'lp_account_status', 'approved' );
-                    do_action( 'lp_account_goedgekeurd', $user_id );
-                    echo '<div class="notice notice-success"><p>' . esc_html__( 'Account goedgekeurd.', 'mijn-ledenportaal' ) . '</p></div>';
-                } elseif ( $actie === 'afwijzen' ) {
-                    update_user_meta( $user_id, 'lp_account_status', 'rejected' );
-                    do_action( 'lp_account_afgewezen', $user_id );
-                    echo '<div class="notice notice-warning"><p>' . esc_html__( 'Account afgewezen.', 'mijn-ledenportaal' ) . '</p></div>';
-                } elseif ( $actie === 'testaccount_aan' ) {
-                    update_user_meta( $user_id, 'lp_is_testaccount', '1' );
-                } elseif ( $actie === 'testaccount_uit' ) {
-                    delete_user_meta( $user_id, 'lp_is_testaccount' );
-                }
-            }
-        }
+    $meldingen = [
+        'goedgekeurd' => [ 'success', __( 'Account goedgekeurd.', 'mijn-ledenportaal' ) ],
+        'afgewezen'   => [ 'warning', __( 'Account afgewezen.', 'mijn-ledenportaal' ) ],
+        'ongewijzigd' => [ 'info',    __( 'Dit account had die status al; er is geen mail verstuurd.', 'mijn-ledenportaal' ) ],
+    ];
+    $melding = $meldingen[ sanitize_key( $_GET['lp_melding'] ?? '' ) ] ?? null;
+    if ( $melding ) {
+        echo '<div class="notice notice-' . esc_attr( $melding[0] ) . ' is-dismissible"><p>' . esc_html( $melding[1] ) . '</p></div>';
     }
 
     $filter_status = sanitize_key( $_GET['lp_filter'] ?? 'all' );
@@ -1399,6 +1424,23 @@ function lp_admin_formuliervelden_pagina() {
 // ──────────────────────────────────────────────────────────────
 
 /**
+ * CSV-injectie voorkomen: een waarde die begint met = + - @ of een tab/return wordt door Excel als
+ * formule uitgevoerd. Zet er een ' voor, zodat het als tekst wordt getoond (OWASP-aanbeveling).
+ */
+function lp_csv_veilig( $waarde ) {
+    $waarde = (string) $waarde;
+    return ( $waarde !== '' && strpbrk( $waarde[0], "=+-@\t\r" ) !== false ) ? "'" . $waarde : $waarde;
+}
+
+/**
+ * Tegenhanger van lp_csv_veilig() voor de import: haal de beschermende ' weer weg
+ */
+function lp_csv_terug( $waarde ) {
+    $waarde = (string) $waarde;
+    return ( strlen( $waarde ) > 1 && $waarde[0] === "'" && strpbrk( $waarde[1], "=+-@\t\r" ) !== false ) ? substr( $waarde, 1 ) : $waarde;
+}
+
+/**
  * Geeft alle exporteerbare velden terug: slug => label
  */
 function lp_export_velden() {
@@ -1514,7 +1556,7 @@ function lp_export_uitvoeren() {
                 $rij[]  = is_array( $waarde ) ? implode( ', ', $waarde ) : (string) $waarde;
             }
         }
-        fputcsv( $output, $rij, ';' );
+        fputcsv( $output, array_map( 'lp_csv_veilig', $rij ), ';' );
     }
 
     fclose( $output );
@@ -1644,14 +1686,7 @@ function lp_admin_import_pagina() {
                             <option value="registratie"><?php esc_html_e( 'Registratiebevestiging sturen', 'mijn-ledenportaal' ); ?></option>
                             <option value="wachtwoord_instellen" selected><?php esc_html_e( 'Link om wachtwoord in te stellen sturen', 'mijn-ledenportaal' ); ?></option>
                         </select>
-                        <p class="description"><?php esc_html_e( 'Bij "wachtwoord instellen" wordt het wachtwoordveld genegeerd en krijgt de gebruiker een e-mail met een persoonlijke link.', 'mijn-ledenportaal' ); ?></p>
-                    </td>
-                </tr>
-                <tr id="lp-import-ww-rij">
-                    <th scope="row"><label for="lp_import_wachtwoord"><?php esc_html_e( 'Standaard wachtwoord', 'mijn-ledenportaal' ); ?></label></th>
-                    <td>
-                        <input type="text" name="lp_import_wachtwoord" id="lp_import_wachtwoord" value="" class="regular-text" placeholder="<?php esc_attr_e( 'Leeg = automatisch genereren', 'mijn-ledenportaal' ); ?>">
-                        <p class="description"><?php esc_html_e( 'Alleen van toepassing als er geen mail wordt gestuurd of bij registratiebevestiging.', 'mijn-ledenportaal' ); ?></p>
+                        <p class="description"><?php esc_html_e( 'Nieuwe accounts krijgen altijd een willekeurig wachtwoord. Zonder wachtwoord-instellen-link stelt het lid zelf een wachtwoord in via "Wachtwoord vergeten".', 'mijn-ledenportaal' ); ?></p>
                     </td>
                 </tr>
                 <tr>
@@ -1663,7 +1698,12 @@ function lp_admin_import_pagina() {
                             <option value="approved"><?php esc_html_e( 'Goedgekeurd', 'mijn-ledenportaal' ); ?></option>
                             <option value="rejected"><?php esc_html_e( 'Afgewezen', 'mijn-ledenportaal' ); ?></option>
                         </select>
-                        <p class="description"><?php esc_html_e( 'Als je hier een waarde kiest, wordt die voor alle geïmporteerde rijen gebruikt (ook bij bestaande gebruikers).', 'mijn-ledenportaal' ); ?></p>
+                        <p class="description"><?php esc_html_e( 'Als je hier een waarde kiest, wordt die gebruikt voor alle nieuw aangemaakte accounts.', 'mijn-ledenportaal' ); ?></p>
+                        <label style="display: block; margin-top: 8px;">
+                            <input type="checkbox" name="lp_import_status_bestaand" value="1">
+                            <?php esc_html_e( 'Ook toepassen op bestaande leden', 'mijn-ledenportaal' ); ?>
+                        </label>
+                        <p class="description"><?php esc_html_e( 'Let op: hiermee krijgen alle bestaande leden in het bestand deze status. "In afwachting" of "Afgewezen" sluit ze buiten.', 'mijn-ledenportaal' ); ?></p>
                     </td>
                 </tr>
             </table>
@@ -1696,17 +1736,6 @@ function lp_admin_import_pagina() {
             </tbody>
         </table>
     </div>
-    <script>
-    (function() {
-        var mailSelect = document.getElementById('lp_import_mail');
-        var wwRij      = document.getElementById('lp-import-ww-rij');
-        function toggleWw() {
-            wwRij.style.display = mailSelect.value === 'wachtwoord_instellen' ? 'none' : '';
-        }
-        mailSelect.addEventListener('change', toggleWw);
-        toggleWw();
-    })();
-    </script>
     <?php
 }
 
@@ -1773,8 +1802,9 @@ function lp_import_uitvoeren() {
 
     $toevoegen        = ! empty( $_POST['lp_import_toevoegen'] );
     $mail_optie       = sanitize_key( $_POST['lp_import_mail'] ?? '' );
-    $standaard_ww     = $mail_optie === 'wachtwoord_instellen' ? '' : sanitize_text_field( $_POST['lp_import_wachtwoord'] ?? '' );
     $standaard_status = sanitize_text_field( $_POST['lp_import_status'] ?? '' );
+    // Overschreven status geldt alleen voor bestaande leden als dat expliciet is aangevinkt
+    $status_bestaand  = ! empty( $_POST['lp_import_status_bestaand'] ) ? $standaard_status : '';
     $geldig_statussen = [ 'pending', 'approved', 'rejected' ];
 
     $meta_velden = [
@@ -1792,7 +1822,7 @@ function lp_import_uitvoeren() {
         // Rij omzetten naar veld => waarde
         $data = [];
         foreach ( $kolom_map as $i => $slug ) {
-            $data[ $slug ] = isset( $rij[ $i ] ) ? trim( $rij[ $i ] ) : '';
+            $data[ $slug ] = isset( $rij[ $i ] ) ? lp_csv_terug( trim( $rij[ $i ] ) ) : '';
         }
 
         // E-mailadres valideren — sanitize_email() maakt van een ongeldig adres een lege string,
@@ -1839,7 +1869,7 @@ function lp_import_uitvoeren() {
                 continue;
             }
 
-            lp_import_meta_opslaan( $gebruiker_id, $data, $meta_velden, $standaard_status, $geldig_statussen );
+            lp_import_meta_opslaan( $gebruiker_id, $data, $meta_velden, $status_bestaand, $geldig_statussen );
             $resultaten['bijgewerkt']++;
 
         } elseif ( $toevoegen ) {
@@ -1851,7 +1881,8 @@ function lp_import_uitvoeren() {
                 continue;
             }
 
-            $login = ! empty( $data['user_login'] ) ? sanitize_user( $data['user_login'] ) : sanitize_user( $email );
+            // Zonder gebruikersnaam in de CSV: unieke naam op basis van het e-mailadres
+            $login = ! empty( $data['user_login'] ) ? sanitize_user( $data['user_login'] ) : lp_unieke_gebruikersnaam( $email );
             if ( username_exists( $login ) ) {
                 $resultaten['fouten'][]  = sprintf( __( 'Rij %1$d: gebruikersnaam %2$s is al in gebruik bij een ander account.', 'mijn-ledenportaal' ), $rij_nummer, $login );
                 $resultaten['overgeslagen']++;
@@ -1863,7 +1894,8 @@ function lp_import_uitvoeren() {
                 'user_email' => $email,
                 'first_name' => sanitize_text_field( $data['first_name'] ?? '' ),
                 'last_name'  => sanitize_text_field( $data['last_name'] ?? '' ),
-                'user_pass'  => ! empty( $standaard_ww ) ? $standaard_ww : wp_generate_password( 16 ),
+                // Nooit een gedeeld standaardwachtwoord: het lid stelt zelf een wachtwoord in
+                'user_pass'  => wp_generate_password( 24 ),
                 'role'       => get_option( 'lp_registratie_rol', 'subscriber' ),
             ];
 

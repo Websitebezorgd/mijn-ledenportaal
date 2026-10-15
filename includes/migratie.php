@@ -514,7 +514,7 @@ function lp_migratie_export_csv( array $mapping ) {
             $rij[] = $val;
         }
 
-        fputcsv( $out, $rij );
+        fputcsv( $out, array_map( 'lp_csv_veilig', $rij ) );
     }
 
     fclose( $out );
@@ -564,7 +564,7 @@ function lp_migratie_import_csv() {
 
         foreach ( $lp_velden as $lp_sleutel => $_ ) {
             if ( ! isset( $data[ $lp_sleutel ] ) ) continue;
-            $waarde = sanitize_text_field( $data[ $lp_sleutel ] );
+            $waarde = sanitize_text_field( lp_csv_terug( $data[ $lp_sleutel ] ) );
 
             if ( $lp_sleutel === 'lp_verenigingsfunctie' ) {
                 // Sla op als meerdere rijen

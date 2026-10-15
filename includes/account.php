@@ -46,6 +46,14 @@ function lp_verwerk_account() {
     if ( empty( $achternaam ) ) $fouten[] = __( 'Achternaam is verplicht.', 'mijn-ledenportaal' );
 
     if ( ! empty( $nieuw_wachtwoord ) ) {
+        // Huidig wachtwoord vereist, zodat een overgenomen sessie niet direct tot accountovername leidt
+        $huidig_wachtwoord = $_POST['huidig_wachtwoord'] ?? '';
+        if ( lp_limiet_bereikt( 'account_wachtwoord', $user_id, 5 ) ) {
+            $fouten[] = __( 'Te veel onjuiste pogingen. Probeer het over 15 minuten opnieuw.', 'mijn-ledenportaal' );
+        } elseif ( $huidig_wachtwoord === '' || ! wp_check_password( $huidig_wachtwoord, $gebruiker->user_pass, $user_id ) ) {
+            lp_limiet_tel( 'account_wachtwoord', $user_id, 15 * MINUTE_IN_SECONDS );
+            $fouten[] = __( 'Je huidige wachtwoord is onjuist.', 'mijn-ledenportaal' );
+        }
         if ( strlen( $nieuw_wachtwoord ) < 8 )          $fouten[] = __( 'Nieuw wachtwoord moet minimaal 8 tekens bevatten.', 'mijn-ledenportaal' );
         if ( $nieuw_wachtwoord !== $nieuw_wachtwoord2 ) $fouten[] = __( 'Nieuwe wachtwoorden komen niet overeen.', 'mijn-ledenportaal' );
     }
@@ -71,10 +79,10 @@ function lp_verwerk_account() {
         exit;
     }
 
-    // Onderdruk WordPress-eigen notificatiemails (email-wijziging / wachtwoord-wijziging)
-    // om trage synchrone mailblokkade bij het opslaan te voorkomen.
-    add_filter( 'send_email_change_email',    '__return_false' );
-    add_filter( 'send_password_change_email', '__return_false' );
+    // Onderdruk de e-mailwijzigingsmail van WordPress om trage synchrone mailblokkade te voorkomen
+    // (het e-mailadres is hier niet te wijzigen). De wachtwoordwijzigingsmail blijft aan: dat is een
+    // beveiligingsmelding en wordt alleen verstuurd als het wachtwoord echt verandert.
+    add_filter( 'send_email_change_email', '__return_false' );
 
     $user_data = [
         'ID'           => $user_id,
@@ -87,8 +95,7 @@ function lp_verwerk_account() {
     }
     wp_update_user( $user_data );
 
-    remove_filter( 'send_email_change_email',    '__return_false' );
-    remove_filter( 'send_password_change_email', '__return_false' );
+    remove_filter( 'send_email_change_email', '__return_false' );
 
     update_user_meta( $user_id, 'lp_geslacht',              $geslacht );
     update_user_meta( $user_id, 'lp_geboortedatum',         $geboortedatum );

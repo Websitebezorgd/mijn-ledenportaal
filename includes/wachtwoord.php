@@ -23,8 +23,15 @@ function lp_verwerk_wachtwoord_vergeten() {
         exit;
     }
 
+    // Rate limiting tegen mailbombing: max. 3 resetmails per adres en 10 aanvragen per IP per uur.
+    // Bij overschrijding tonen we hetzelfde succesbericht, zodat er niets over het adres uitlekt.
+    $ip            = lp_client_ip();
+    $mag_versturen = ! lp_limiet_bereikt( 'reset_email', $email, 3 ) && ! lp_limiet_bereikt( 'reset_ip', $ip, 10 );
+    lp_limiet_tel( 'reset_email', $email, HOUR_IN_SECONDS );
+    lp_limiet_tel( 'reset_ip', $ip, HOUR_IN_SECONDS );
+
     // Altijd succesbericht tonen, ook als e-mail niet bestaat (security: geen user enumeration)
-    $gebruiker = get_user_by( 'email', $email );
+    $gebruiker = $mag_versturen ? get_user_by( 'email', $email ) : false;
 
     if ( $gebruiker ) {
         $reset_key = get_password_reset_key( $gebruiker );
