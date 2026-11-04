@@ -59,54 +59,68 @@ function lp_email_wijzig_lees_invoer( $tekst ) {
 }
 
 /**
- * Gebruikersnaam bij het nieuwe adres: zelfde opschoning als bij registratie
- * (lp_unieke_gebruikersnaam), maar de eigen huidige gebruikersnaam telt niet als bezet.
+ * Mag de huidige gebruiker deze pagina gebruiken? Zelfde eis als bij het opslaan van
+ * profielvelden: beheerder van de instellingen én van gebruikers.
  */
-function lp_email_wijzig_nieuwe_login( $nieuw, $user_id ) {
-    $basis = substr( sanitize_user( $nieuw, true ), 0, 50 ) ?: 'lid';
-    $login = $basis;
-    for ( $i = 2; ( $eigenaar = username_exists( $login ) ) && (int) $eigenaar !== (int) $user_id; $i++ ) {
-        $login = $basis . '-' . $i;
+function lp_email_wijzig_mag() {
+    return current_user_can( 'manage_options' ) && current_user_can( 'edit_users' );
+}
+
+/**
+ * Unieke user_nicename (gebruikt in auteur-URL's en het zoeken in Ledenbeheer) bij de nieuwe
+ * gebruikersnaam, zodat het oude adres daar niet blijft staan. Zelfde opbouw als wp_insert_user.
+ */
+function lp_email_wijzig_nieuwe_nicename( $login, $user_id ) {
+    global $wpdb;
+    $basis    = mb_substr( sanitize_title( $login ), 0, 50 ) ?: 'lid';
+    $nicename = $basis;
+    for ( $i = 2; $wpdb->get_var( $wpdb->prepare( "SELECT ID FROM {$wpdb->users} WHERE user_nicename = %s AND ID != %d LIMIT 1", $nicename, $user_id ) ); $i++ ) {
+        // Kolom is maximaal 50 tekens, inclusief het volgnummer
+        $nicename = mb_substr( $basis, 0, 50 - strlen( "-$i" ) ) . "-$i";
     }
-    return $login;
+    return $nicename;
 }
 
 /**
  * Controleer één paar en voer het uit als $uitvoeren true is.
  *
- * Statussen: klaar, bijgewerkt, ongewijzigd, niet_gevonden, meerdere, conflict, fout.
+ * Statussen: klaar, bijgewerkt, ongewijzigd, niet_gevonden, eigen_account, geen_rechten,
+ * conflict, fout. (dubbel komt uit lp_email_wijzig_verwerk_alles.)
  */
 function lp_email_wijzig_verwerk( array $paar, $uitvoeren = false ) {
     global $wpdb;
 
-    $oud      = $paar['oud'];
-    $nieuw    = $paar['nieuw'];
+    $oud       = $paar['oud'];
+    $nieuw     = $paar['nieuw'];
     $resultaat = [ 'oud' => $oud, 'nieuw' => $nieuw, 'user_id' => null, 'status' => '', 'bericht' => '' ];
 
-    // Gebruiker zoeken op e-mailadres én op gebruikersnaam (oude accounts hebben het adres als gebruikersnaam)
-    $id_via_login = (int) username_exists( $oud );
-    $via_email    = get_user_by( 'email', $oud );
-    $id_via_email = $via_email ? (int) $via_email->ID : 0;
-    $ids          = array_values( array_unique( array_filter( [ $id_via_email, $id_via_login ] ) ) );
+    // Eerst op e-mailadres zoeken. Alleen als dat niets oplevert op gebruikersnaam: oudere accounts
+    // hebben hun eerste adres als gebruikersnaam, ook als dat adres nu bij een ander lid hoort.
+    $gebruiker = get_user_by( 'email', $oud );
+    if ( ! $gebruiker ) {
+        $id_via_login = (int) username_exists( $oud );
+        $gebruiker    = $id_via_login ? get_userdata( $id_via_login ) : false;
+    }
 
-    if ( ! $ids ) {
+    if ( ! $gebruiker ) {
         $resultaat['status']  = 'niet_gevonden';
         $resultaat['bericht'] = __( 'Geen gebruiker met dit e-mailadres of deze gebruikersnaam.', 'mijn-ledenportaal' );
         return $resultaat;
     }
-    if ( count( $ids ) > 1 ) {
-        $resultaat['status']  = 'meerdere';
-        $resultaat['bericht'] = sprintf( __( 'Past bij meerdere gebruikers (ID %s). Niet gewijzigd; doe dit handmatig.', 'mijn-ledenportaal' ), implode( ', ', $ids ) );
-        return $resultaat;
-    }
 
-    $user_id   = $ids[0];
-    $gebruiker = get_userdata( $user_id );
+    $user_id = (int) $gebruiker->ID;
     $resultaat['user_id'] = $user_id;
 
-    if ( ! $gebruiker ) {
-        $resultaat['status']  = 'fout';
-        $resultaat['bericht'] = __( 'Gebruiker kon niet worden geladen.', 'mijn-ledenportaal' );
+    // Je eigen account: de wijziging logt je direct uit, midden in deze actie
+    if ( $user_id === (int) get_current_user_id() ) {
+        $resultaat['status']  = 'eigen_account';
+        $resultaat['bericht'] = __( 'Dit is je eigen account. Wijzig je eigen adres via je profiel.', 'mijn-ledenportaal' );
+        return $resultaat;
+    }
+    // Per account controleren, zodat bijvoorbeeld een super admin niet door een sitebeheerder te wijzigen is
+    if ( ! current_user_can( 'edit_user', $user_id ) ) {
+        $resultaat['status']  = 'geen_rechten';
+        $resultaat['bericht'] = __( 'Je hebt geen rechten om dit account te wijzigen.', 'mijn-ledenportaal' );
         return $resultaat;
     }
 
@@ -118,7 +132,7 @@ function lp_email_wijzig_verwerk( array $paar, $uitvoeren = false ) {
         return $resultaat;
     }
 
-    $nieuwe_login = lp_email_wijzig_nieuwe_login( $nieuw, $user_id );
+    $nieuwe_login = lp_unieke_gebruikersnaam( $nieuw, $user_id );
 
     if ( $gebruiker->user_email === $nieuw && $gebruiker->user_login === $nieuwe_login ) {
         $resultaat['status']  = 'ongewijzigd';
@@ -135,14 +149,14 @@ function lp_email_wijzig_verwerk( array $paar, $uitvoeren = false ) {
         return $resultaat;
     }
 
+    $nieuwe_gegevens = [
+        'user_login'    => $nieuwe_login,
+        'user_email'    => $nieuw,
+        'user_nicename' => lp_email_wijzig_nieuwe_nicename( $nieuwe_login, $user_id ),
+    ];
+
     // wp_update_user() kan de gebruikersnaam niet wijzigen, dus rechtstreeks in de tabel
-    $gelukt = $wpdb->update(
-        $wpdb->users,
-        [ 'user_login' => $nieuwe_login, 'user_email' => $nieuw ],
-        [ 'ID' => $user_id ],
-        [ '%s', '%s' ],
-        [ '%d' ]
-    );
+    $gelukt = $wpdb->update( $wpdb->users, $nieuwe_gegevens, [ 'ID' => $user_id ], [ '%s', '%s', '%s' ], [ '%d' ] );
 
     if ( $gelukt === false ) {
         $resultaat['status']  = 'fout';
@@ -150,11 +164,14 @@ function lp_email_wijzig_verwerk( array $paar, $uitvoeren = false ) {
         return $resultaat;
     }
 
-    // Cache wissen met het oude object, zodat ook de oude login/e-mail-sleutels verdwijnen
+    // Cache wissen met het oude object, zodat ook de oude login/e-mail/nicename-sleutels verdwijnen
     clean_user_cache( $gebruiker );
     // Overal uitloggen: de inlogcookie hoort bij de oude gebruikersnaam
     WP_Session_Tokens::get_instance( $user_id )->destroy_all();
+    update_user_meta( $user_id, 'lp_account_gewijzigd', current_time( 'Y-m-d H:i:s', true ) );
 
+    // Andere plugins (mailinglijst, CRM) laten weten dat het profiel is gewijzigd, zoals wp_update_user doet
+    do_action( 'profile_update', $user_id, $gebruiker, [ 'ID' => $user_id ] + $nieuwe_gegevens );
     do_action( 'lp_email_gewijzigd', $user_id, $gebruiker->user_email, $nieuw );
 
     $resultaat['status']  = 'bijgewerkt';
@@ -162,14 +179,68 @@ function lp_email_wijzig_verwerk( array $paar, $uitvoeren = false ) {
     return $resultaat;
 }
 
+/**
+ * Verwerk alle paren. Bij uitvoeren komt elk resultaat meteen in het logboek, zodat ook na een
+ * time-out halverwege te zien is welke accounts al zijn gewijzigd.
+ *
+ * Een adres dat in meer dan één regel voorkomt wordt niet verwerkt: zulke wijzigingen hangen van
+ * elkaar af (b => c en a => b), en dan zou het voorbeeld iets anders laten zien dan het uitvoeren.
+ */
+function lp_email_wijzig_verwerk_alles( array $paren, $uitvoeren = false ) {
+    $adressen_per_paar = array_map( fn( $p ) => array_unique( [ strtolower( $p['oud'] ), strtolower( $p['nieuw'] ) ] ), $paren );
+    $aantal            = array_count_values( array_merge( [], ...$adressen_per_paar ) );
+    $door              = $uitvoeren ? wp_get_current_user() : null;
+    $uitkomst          = [];
+
+    foreach ( $paren as $i => $paar ) {
+        $dubbel = array_filter( $adressen_per_paar[ $i ], fn( $adres ) => $aantal[ $adres ] > 1 );
+
+        $r = $dubbel
+            ? [ 'oud' => $paar['oud'], 'nieuw' => $paar['nieuw'], 'user_id' => null, 'status' => 'dubbel',
+                'bericht' => sprintf( __( '%s staat in meer dan één regel. Doe wijzigingen die van elkaar afhangen in aparte rondes.', 'mijn-ledenportaal' ), implode( ', ', $dubbel ) ) ]
+            : lp_email_wijzig_verwerk( $paar, $uitvoeren );
+
+        if ( $uitvoeren ) {
+            lp_email_wijzig_log_toevoegen( $r + [
+                'tijd' => current_time( 'mysql' ),
+                'door' => $door->user_login . ' (#' . $door->ID . ')',
+            ] );
+        }
+        $uitkomst[] = $r;
+    }
+
+    return $uitkomst;
+}
+
 function lp_email_wijzig_log() {
-    // Bestaand logboek van de losse plugin overnemen zolang er nog geen eigen logboek is
-    $log = get_option( LP_EMAIL_WIJZIG_LOG, null ) ?? get_option( 'wys_ueu_log', [] );
+    $log = get_option( LP_EMAIL_WIJZIG_LOG, null );
+
+    // Eenmalig het logboek van de losse plugin "User Email Updater" overnemen
+    if ( $log === null ) {
+        $statussen = [ 'updated' => 'bijgewerkt', 'not_found' => 'niet_gevonden', 'ambiguous' => 'meerdere', 'error' => 'fout', 'ready' => 'klaar' ];
+        $log = [];
+        foreach ( (array) get_option( 'wys_ueu_log', [] ) as $r ) {
+            if ( ! is_array( $r ) ) continue;
+            $log[] = [
+                'tijd'    => $r['time'] ?? '',
+                'door'    => $r['actor'] ?? '',
+                'oud'     => $r['old'] ?? '',
+                'nieuw'   => $r['new'] ?? '',
+                'user_id' => $r['user_id'] ?? null,
+                'status'  => $statussen[ $r['status'] ?? '' ] ?? ( $r['status'] ?? '' ),
+                'bericht' => $r['message'] ?? '',
+            ];
+        }
+        update_option( LP_EMAIL_WIJZIG_LOG, $log, false );
+        delete_option( 'wys_ueu_log' );
+    }
+
     return is_array( $log ) ? $log : [];
 }
 
-function lp_email_wijzig_log_toevoegen( array $regels ) {
-    $log = array_merge( array_reverse( $regels ), lp_email_wijzig_log() );
+function lp_email_wijzig_log_toevoegen( array $regel ) {
+    $log = lp_email_wijzig_log();
+    array_unshift( $log, $regel );
     update_option( LP_EMAIL_WIJZIG_LOG, array_slice( $log, 0, LP_EMAIL_WIJZIG_LOG_MAX ), false );
 }
 
@@ -178,7 +249,7 @@ function lp_email_wijzig_log_toevoegen( array $regels ) {
  * zodat vernieuwen het formulier niet opnieuw verstuurt.
  */
 add_action( 'admin_post_lp_email_wijzigen', function() {
-    if ( ! current_user_can( 'manage_options' ) ) wp_die( esc_html__( 'Geen toegang.', 'mijn-ledenportaal' ), 403 );
+    if ( ! lp_email_wijzig_mag() ) wp_die( esc_html__( 'Geen toegang.', 'mijn-ledenportaal' ), 403 );
     check_admin_referer( 'lp_email_wijzigen' );
 
     $stap  = sanitize_key( $_POST['lp_stap'] ?? '' );
@@ -189,22 +260,18 @@ add_action( 'admin_post_lp_email_wijzigen', function() {
         update_option( LP_EMAIL_WIJZIG_LOG, [], false );
     } elseif ( in_array( $stap, [ 'voorbeeld', 'uitvoeren' ], true ) ) {
         $uitvoeren = $stap === 'uitvoeren';
-        $invoer    = lp_email_wijzig_lees_invoer( $tekst );
-        $uitkomst  = array_map( fn( $paar ) => lp_email_wijzig_verwerk( $paar, $uitvoeren ), $invoer['paren'] );
-
         if ( $uitvoeren ) {
-            $door = wp_get_current_user();
-            lp_email_wijzig_log_toevoegen( array_map( fn( $r ) => $r + [
-                'tijd' => current_time( 'mysql' ),
-                'door' => $door->user_login . ' (#' . $door->ID . ')',
-            ], $uitkomst ) );
+            // Een lange lijst kan even duren; voorkom dat PHP halverwege afbreekt
+            wp_raise_memory_limit( 'admin' );
+            if ( function_exists( 'set_time_limit' ) ) set_time_limit( 0 );
         }
 
-        $flash = [
+        $invoer = lp_email_wijzig_lees_invoer( $tekst );
+        $flash  = [
             'stap'     => $stap,
             // Na uitvoeren het tekstvak leegmaken, zodat niemand per ongeluk twee keer uitvoert
             'tekst'    => $uitvoeren ? '' : $tekst,
-            'uitkomst' => $uitkomst,
+            'uitkomst' => lp_email_wijzig_verwerk_alles( $invoer['paren'], $uitvoeren ),
             'fouten'   => $invoer['fouten'],
         ];
     }
@@ -220,14 +287,13 @@ function lp_email_wijzig_status_label( $status ) {
         'bijgewerkt'    => [ __( 'Bijgewerkt', 'mijn-ledenportaal' ), '#00a32a' ],
         'ongewijzigd'   => [ __( 'Al goed', 'mijn-ledenportaal' ), '#646970' ],
         'niet_gevonden' => [ __( 'Niet gevonden', 'mijn-ledenportaal' ), '#646970' ],
-        'meerdere'      => [ __( 'Meerdere gebruikers', 'mijn-ledenportaal' ), '#dba617' ],
+        'dubbel'        => [ __( 'Dubbel in lijst', 'mijn-ledenportaal' ), '#dba617' ],
+        'eigen_account' => [ __( 'Eigen account', 'mijn-ledenportaal' ), '#dba617' ],
+        'geen_rechten'  => [ __( 'Geen rechten', 'mijn-ledenportaal' ), '#d63638' ],
         'conflict'      => [ __( 'Conflict', 'mijn-ledenportaal' ), '#d63638' ],
         'fout'          => [ __( 'Fout', 'mijn-ledenportaal' ), '#d63638' ],
-        // Statussen uit het logboek van de losse plugin
-        'updated'       => [ __( 'Bijgewerkt', 'mijn-ledenportaal' ), '#00a32a' ],
-        'not_found'     => [ __( 'Niet gevonden', 'mijn-ledenportaal' ), '#646970' ],
-        'ambiguous'     => [ __( 'Meerdere gebruikers', 'mijn-ledenportaal' ), '#dba617' ],
-        'error'         => [ __( 'Fout', 'mijn-ledenportaal' ), '#d63638' ],
+        // Alleen nog in het overgenomen logboek van de losse plugin
+        'meerdere'      => [ __( 'Meerdere gebruikers', 'mijn-ledenportaal' ), '#dba617' ],
     ];
     [ $tekst, $kleur ] = $labels[ $status ] ?? [ $status, '#646970' ];
     return sprintf(
@@ -238,7 +304,7 @@ function lp_email_wijzig_status_label( $status ) {
 }
 
 function lp_admin_email_wijzigen_pagina() {
-    if ( ! current_user_can( 'manage_options' ) ) return;
+    if ( ! lp_email_wijzig_mag() ) return;
 
     $sleutel = 'lp_email_wijzig_' . get_current_user_id();
     $flash   = get_transient( $sleutel ) ?: [];
@@ -346,14 +412,13 @@ function lp_admin_email_wijzigen_pagina() {
                 <tbody>
                     <?php foreach ( $log as $r ) : ?>
                         <tr>
-                            <?php // Oude regels uit de losse plugin gebruiken Engelse sleutels ?>
-                            <td><?php echo esc_html( $r['tijd'] ?? $r['time'] ?? '' ); ?></td>
-                            <td><?php echo esc_html( $r['door'] ?? $r['actor'] ?? '' ); ?></td>
-                            <td><code><?php echo esc_html( $r['oud'] ?? $r['old'] ?? '' ); ?></code></td>
-                            <td><code><?php echo esc_html( $r['nieuw'] ?? $r['new'] ?? '' ); ?></code></td>
+                            <td><?php echo esc_html( $r['tijd'] ?? '' ); ?></td>
+                            <td><?php echo esc_html( $r['door'] ?? '' ); ?></td>
+                            <td><code><?php echo esc_html( $r['oud'] ?? '' ); ?></code></td>
+                            <td><code><?php echo esc_html( $r['nieuw'] ?? '' ); ?></code></td>
                             <td><?php echo (int) ( $r['user_id'] ?? 0 ) ?: '—'; ?></td>
                             <td><?php echo lp_email_wijzig_status_label( $r['status'] ?? '' ); ?></td>
-                            <td><?php echo esc_html( $r['bericht'] ?? $r['message'] ?? '' ); ?></td>
+                            <td><?php echo esc_html( $r['bericht'] ?? '' ); ?></td>
                         </tr>
                     <?php endforeach; ?>
                 </tbody>

@@ -346,7 +346,7 @@ add_action( 'admin_menu', function() {
         'ledenportaal',
         __( 'E-mail wijzigen', 'mijn-ledenportaal' ),
         __( 'E-mail wijzigen', 'mijn-ledenportaal' ),
-        'manage_options',
+        'edit_users',
         'lp-email-wijzigen',
         'lp_admin_email_wijzigen_pagina'
     );
