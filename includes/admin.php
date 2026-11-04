@@ -341,6 +341,15 @@ add_action( 'admin_menu', function() {
         'lp-ledenbeheer',
         'lp_admin_ledenbeheer_pagina'
     );
+
+    add_submenu_page(
+        'ledenportaal',
+        __( 'E-mail wijzigen', 'mijn-ledenportaal' ),
+        __( 'E-mail wijzigen', 'mijn-ledenportaal' ),
+        'edit_users',
+        'lp-email-wijzigen',
+        'lp_admin_email_wijzigen_pagina'
+    );
 } );
 
 /**

@@ -26,12 +26,14 @@ function lp_valideer_iban( $iban ) {
  * Het e-mailadres zelf kan al als gebruikersnaam bestaan bij een account waarvan het adres later
  * is gewijzigd; dan wordt er een volgnummer achter gezet (jan@voorbeeld.nl-2). Inloggen gaat
  * via het e-mailadres, dus de gebruikersnaam ziet het lid niet.
+ *
+ * Met $user_id telt de gebruikersnaam van dat account zelf niet als bezet (bij e-mail wijzigen).
  */
-function lp_unieke_gebruikersnaam( $email ) {
+function lp_unieke_gebruikersnaam( $email, $user_id = 0 ) {
     // Zelfde strikte opschoning als wp_insert_user, zodat de controle klopt met wat er wordt opgeslagen
     $basis = substr( sanitize_user( $email, true ), 0, 50 ) ?: 'lid';
     $login = $basis;
-    for ( $i = 2; username_exists( $login ); $i++ ) {
+    for ( $i = 2; ( $eigenaar = username_exists( $login ) ) && (int) $eigenaar !== (int) $user_id; $i++ ) {
         $login = $basis . '-' . $i;
     }
     return $login;
