@@ -16,8 +16,8 @@ define( 'HOUR_IN_SECONDS', 3600 );
 $GLOBALS['lp_test'] = [ 'opties' => [], 'meta' => [], 'posts' => [], 'users' => [], 'transients' => [], 'hooks' => [], 'ingelogd' => false ];
 
 class WP_User {
-    public $ID, $user_email;
-    function __construct( $id, $email = '' ) { $this->ID = $id; $this->user_email = $email; }
+    public $ID, $user_email, $user_login;
+    function __construct( $id, $email = '', $login = '' ) { $this->ID = $id; $this->user_email = $email; $this->user_login = $login; }
 }
 class WP_Error {
     private $code, $message, $data;
@@ -56,6 +56,15 @@ function username_exists( $login ) { return $GLOBALS['lp_test']['users'][ $login
 function get_transient( $k ) { return $GLOBALS['lp_test']['transients'][ $k ] ?? false; }
 function set_transient( $k, $v ) { $GLOBALS['lp_test']['transients'][ $k ] = $v; }
 function delete_transient( $k ) { unset( $GLOBALS['lp_test']['transients'][ $k ] ); }
+function is_email( $e ) { return (bool) filter_var( $e, FILTER_VALIDATE_EMAIL ); }
+// Gebruikers voor e-mail wijzigen: id => WP_User; opzoeken zonder hoofdlettergevoeligheid, net als MySQL
+function get_userdata( $id ) { return $GLOBALS['lp_test']['accounts'][ $id ] ?? false; }
+function get_user_by( $veld, $waarde ) {
+    foreach ( $GLOBALS['lp_test']['accounts'] ?? [] as $u ) {
+        if ( strcasecmp( $veld === 'email' ? $u->user_email : $u->user_login, $waarde ) === 0 ) return $u;
+    }
+    return false;
+}
 
 $_SERVER['REMOTE_ADDR'] = '192.0.2.1';
 require dirname( __DIR__ ) . '/mijn-ledenportaal.php';
@@ -160,6 +169,36 @@ $gelukt( 'kees', $kees );
 check( 'rate limit: login via gebruikersnaam reset ook e-mailteller', lp_blokkeer_login_na_te_veel_pogingen( $kees, 'kees@x.nl' ) === $kees );
 for ( $i = 0; $i < 30; $i++ ) $mislukt( 'spray' . $i . '@x.nl', new WP_Error( 'invalid_username' ) );
 check( 'rate limit: IP-limiet na 30 fouten', lp_blokkeer_login_na_te_veel_pogingen( $kees, 'nieuw@x.nl' ) instanceof WP_Error );
+
+// ── E-mail wijzigen: invoer lezen ────────────────────────────────
+$r = lp_email_wijzig_lees_invoer( "-- commentaar\n# ook\n\na@x.nl => B@X.nl\nc@x.nl -> d@x.nl\ne@x.nl, f@x.nl\ng@x.nl   h@x.nl\n[i@x.nl](mailto:i@x.nl) => j@x.nl\nonzin\nk@x.nl => geen-adres\nJan@x.nl => jan@x.nl" );
+check( 'e-mail wijzigen: alle scheidingstekens gelezen', count( $r['paren'] ) === 6 );
+check( 'e-mail wijzigen: hoofdletters in nieuw adres blijven staan', $r['paren'][0]['nieuw'] === 'B@X.nl' );
+check( 'e-mail wijzigen: mailto-link opgeschoond', $r['paren'][4]['oud'] === 'i@x.nl' );
+check( 'e-mail wijzigen: alleen hoofdletters anders is toegestaan', $r['paren'][5] === [ 'oud' => 'Jan@x.nl', 'nieuw' => 'jan@x.nl', 'regel' => 11 ] );
+check( 'e-mail wijzigen: foute regels gemeld met regelnummer', array_column( $r['fouten'], 'regel' ) === [ 9, 10 ] );
+
+// ── E-mail wijzigen: controleren (zonder uitvoeren) ──────────────
+zet( 'accounts', [
+    1 => new WP_User( 1, 'oud@x.nl', 'oud@x.nl' ),
+    2 => new WP_User( 2, 'bezet@x.nl', 'lid2' ),
+    3 => new WP_User( 3, 'derde@x.nl', 'gedeeld@x.nl' ),
+    4 => new WP_User( 4, 'gedeeld@x.nl', 'lid4' ),
+    5 => new WP_User( 5, 'Hoofd@x.nl', 'hoofd@x.nl' ),
+    6 => new WP_User( 6, 'klaar@x.nl', 'klaar@x.nl' ),
+] );
+zet( 'users', [ 'oud@x.nl' => 1, 'lid2' => 2, 'gedeeld@x.nl' => 3, 'lid4' => 4, 'hoofd@x.nl' => 5, 'klaar@x.nl' => 6, 'nieuw@x.nl' => 99 ] );
+$status = fn( $oud, $nieuw ) => lp_email_wijzig_verwerk( [ 'oud' => $oud, 'nieuw' => $nieuw ] );
+$r = $status( 'oud@x.nl', 'vrij@x.nl' );
+check( 'e-mail wijzigen: klaar', $r['status'] === 'klaar' && $r['user_id'] === 1 );
+check( 'e-mail wijzigen: onbekend adres', $status( 'wie@x.nl', 'vrij@x.nl' )['status'] === 'niet_gevonden' );
+check( 'e-mail wijzigen: nieuw adres van ander lid', $status( 'oud@x.nl', 'bezet@x.nl' )['status'] === 'conflict' );
+check( 'e-mail wijzigen: gebruikersnaam van de een, adres van de ander', $status( 'gedeeld@x.nl', 'vrij@x.nl' )['status'] === 'meerdere' );
+check( 'e-mail wijzigen: hoofdletters weghalen', $status( 'Hoofd@x.nl', 'hoofd@x.nl' )['status'] === 'klaar' );
+check( 'e-mail wijzigen: hoofdletters toevoegen', $status( 'oud@x.nl', 'Oud@x.nl' )['status'] === 'klaar' );
+check( 'e-mail wijzigen: al goed', $status( 'klaar@x.nl', 'klaar@x.nl' )['status'] === 'ongewijzigd' );
+check( 'e-mail wijzigen: bezette gebruikersnaam krijgt volgnummer', lp_email_wijzig_nieuwe_login( 'nieuw@x.nl', 1 ) === 'nieuw@x.nl-2' );
+check( 'e-mail wijzigen: eigen gebruikersnaam blijft', lp_email_wijzig_nieuwe_login( 'oud@x.nl', 1 ) === 'oud@x.nl' );
 
 echo "\n" . ( $lp_fouten ? "{$lp_fouten} test(s) mislukt.\n" : "Alle tests geslaagd.\n" );
 exit( $lp_fouten ? 1 : 0 );
